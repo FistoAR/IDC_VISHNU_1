@@ -636,7 +636,6 @@ const importTextJSON = async (file) => {
 />
 
 
-
         {/* ---------- PROPERTIES PANEL ---------- */}
         <div className="bg-gray-950 text-white rounded-lg shadow p-4 space-y-4 overflow-y-auto">
           <h2 className="font-semibold text-white">🛠 Properties</h2>
