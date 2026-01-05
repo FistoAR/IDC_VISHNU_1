@@ -1,160 +1,150 @@
-import { useState } from "react";
-import { fabric } from "fabric/dist/fabric.js";
+import React, { useEffect, useRef, useState } from "react";
+import { fabric } from "fabric";
 
-import CanvasEditor from "../components/CanvasEditor";
-import ToolsPanel from "../components/ToolsPanel";
+export default function Editor() {
+  const canvasRef = useRef(null);
+  const canvas = useRef(null);
+  const [extractedText, setExtractedText] = useState([]);
 
-import img1 from "../assets/templete.svg";
+  /* =========================
+      INIT CANVAS
+  ========================== */
+  useEffect(() => {
+    canvas.current = new fabric.Canvas(canvasRef.current, {
+      width: 900,
+      height: 500,
+      backgroundColor: "#ffffff",
+      selection: true
+    });
 
-export default function EditorPage() {
-  const [canvas, setCanvas] = useState(null);
-  const [activeObj, setActiveObj] = useState(null);
-  const [selectedTemplate, setSelectedTemplate] = useState(null);
+    return () => canvas.current.dispose();
+  }, []);
 
-  const TEMPLATE_LIST = [
-    {
-      id: "t1",
-      name: "Template 1",
-      preview: img1,
-      path: "/templates/template.svg", // public/templates/template.svg
-    },
-  ];
+  /* =========================
+      SVG UPLOAD (WITH TEXT)
+  ========================== */
+  const uploadSVG = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-  const loadTemplate = async (tpl) => {
-    if (!canvas) return;
-
-    setSelectedTemplate(tpl.id);
-
-    const res = await fetch(tpl.path);
-    const svgText = await res.text();
-
-    fabric.loadSVGFromString(svgText, (objects, options) => {
-      canvas.clear();
-
-      objects.forEach((obj) => {
-        obj.set({
-          selectable: true,
-          evented: true,
+    const reader = new FileReader();
+    reader.onload = () => {
+      fabric.loadSVGFromString(reader.result, (objects) => {
+        objects.forEach((obj) => {
+          // 🔹 SVG TEXT → FABRIC TEXTBOX
+          if (obj.type === "text" || obj.type === "i-text") {
+            const textBox = new fabric.Textbox(obj.text || "Text", {
+              left: obj.left,
+              top: obj.top,
+              fontSize: obj.fontSize || 24,
+              fill: obj.fill || "#000",
+              fontFamily: obj.fontFamily || "Arial",
+              editable: true
+            });
+            canvas.current.add(textBox);
+          }
+          // 🔹 SHAPES
+          else {
+            obj.selectable = true;
+            canvas.current.add(obj);
+          }
         });
 
-        if (obj.type === "text" || obj.type === "textbox") {
-          obj.editable = true;
-        }
-
-        canvas.add(obj);
+        canvas.current.renderAll();
       });
+    };
 
-      // SCALE TO FIT PAGE
-      const selection = new fabric.ActiveSelection(
-        canvas.getObjects(),
-        { canvas }
-      );
-
-      const bounds = selection.getBoundingRect();
-      const scale = Math.min(
-        canvas.width / bounds.width,
-        canvas.height / bounds.height
-      ) * 0.95;
-
-      selection.scale(scale);
-      selection.center();
-      selection.setCoords();
-
-      canvas.discardActiveObject();
-      canvas.renderAll();
-    });
+    reader.readAsText(file);
   };
 
-  const addText = (label) => {
-    if (!canvas) return;
-
-    const text = new fabric.Textbox(label, {
+  /* =========================
+        ADD TEXT
+  ========================== */
+  const addText = () => {
+    const text = new fabric.Textbox("Edit me", {
       left: 100,
       top: 100,
-      fontSize: 32,
+      fontSize: 30,
       fill: "#000",
-      editable: true,
+      editable: true
     });
-
-    canvas.add(text);
-    canvas.setActiveObject(text);
-    canvas.renderAll();
+    canvas.current.add(text).setActiveObject(text);
   };
 
-  const exportImage = (format) => {
-    if (!canvas) return;
+  /* =========================
+      EXTRACT TEXT DATA
+  ========================== */
+  const extractTextData = () => {
+    const texts = canvas.current
+      .getObjects()
+      .filter(
+        (obj) => obj.type === "textbox" || obj.type === "text"
+      );
 
-    const data = canvas.toDataURL({ format, quality: 1 });
+    const textData = texts.map((t, index) => ({
+      id: index + 1,
+      text: t.text,
+      left: Math.round(t.left),
+      top: Math.round(t.top),
+      width: Math.round(t.width),
+      fontSize: t.fontSize,
+      fontFamily: t.fontFamily,
+      fill: t.fill,
+      textAlign: t.textAlign || "left"
+    }));
+
+    setExtractedText(textData);
+    console.log("EXTRACTED TEXT:", textData);
+  };
+
+  /* =========================
+        SAVE JSON
+  ========================== */
+  const saveJSON = () => {
+    const json = JSON.stringify(canvas.current.toJSON(), null, 2);
+    const blob = new Blob([json], { type: "application/json" });
     const a = document.createElement("a");
-    a.href = data;
-    a.download = `design.${format}`;
+    a.href = URL.createObjectURL(blob);
+    a.download = "editor.json";
     a.click();
   };
 
+  /* =========================
+        LOAD JSON
+  ========================== */
+  const loadJSON = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      canvas.current.loadFromJSON(reader.result, () => {
+        canvas.current.renderAll();
+      });
+    };
+    reader.readAsText(file);
+  };
+
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "15% 60% 25%",
-        height: "100vh",
-        gap: 10,
-        padding: 10,
-        background: "#42454d",
-      }}
-    >
-      {/* LEFT */}
-      <div style={{ background: "#fff", borderRadius: 10, padding: 12 }}>
-        <h3>Templates</h3>
+    <div style={{ padding: 20 }}>
+      <h2>Fabric Text Editor</h2>
 
-        {TEMPLATE_LIST.map((tpl) => (
-          <div
-            key={tpl.id}
-            onClick={() => loadTemplate(tpl)}
-            style={{
-              cursor: "pointer",
-              marginBottom: 12,
-              border:
-                selectedTemplate === tpl.id
-                  ? "2px solid #3b82f6"
-                  : "1px solid #ccc",
-              borderRadius: 8,
-              padding: 6,
-            }}
-          >
-            <img src={tpl.preview} style={{ width: "100%" }} />
-            <div style={{ textAlign: "center" }}>{tpl.name}</div>
-          </div>
-        ))}
+      <div style={{ marginBottom: 10 }}>
+        <button onClick={addText}>Add Text</button>
+        <input type="file" accept=".svg" onChange={uploadSVG} />
+        <input type="file" accept=".json" onChange={loadJSON} />
+        <button onClick={saveJSON}>Save JSON</button>
+        <button onClick={extractTextData}>Extract Text</button>
       </div>
 
-      {/* CENTER */}
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 10,
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <CanvasEditor
-          setCanvas={setCanvas}
-          setActiveObj={setActiveObj}
-        />
-      </div>
+      <canvas ref={canvasRef} />
 
-      {/* RIGHT */}
-      <div style={{ background: "#fff", borderRadius: 10, padding: 12 }}>
-        <h3>Tools</h3>
-        <ToolsPanel canvas={canvas} />
-
-        <h3>Text</h3>
-        <button onClick={() => addText("Title Text")}>Add Title</button>
-        <button onClick={() => addText("Body Text")}>Add Body</button>
-
-        <h3>Export</h3>
-        <button onClick={() => exportImage("png")}>Export PNG</button>
-        <button onClick={() => exportImage("jpeg")}>Export JPG</button>
+      {/* TEXT OUTPUT */}
+      <div style={{ marginTop: 20 }}>
+        <h3>Extracted Text Data</h3>
+        <pre style={{ background: "#f3f4f6", padding: 10 }}>
+          {JSON.stringify(extractedText, null, 2)}
+        </pre>
       </div>
     </div>
   );
