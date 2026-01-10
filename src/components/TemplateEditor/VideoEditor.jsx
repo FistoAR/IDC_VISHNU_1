@@ -140,34 +140,27 @@ const toggleAttribute = (attr) => {
   if (onUpdate) onUpdate();
 };
 
-const handleVideoUpload = (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
+  const handleVideoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  const reader = new FileReader();
-  reader.onload = (event) => {
-    if (selectedElement && selectedElement.tagName === "VIDEO") {
-      selectedElement.src = event.target.result;
-      // Store filename for display
-      selectedElement.setAttribute("data-filename", file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      if (selectedElement && selectedElement.tagName === "VIDEO") {
+        selectedElement.src = event.target.result;
+        // Store filename for display
+        selectedElement.setAttribute("data-filename", file.name);
 
-      // Optionally update source child if exists
-      const source = selectedElement.querySelector("source");
-      if (source) source.src = event.target.result;
+        // Optionally update source child if exists (common in HTML5 video)
+        const source = selectedElement.querySelector("source");
+        if (source) source.src = event.target.result;
 
-      // 🔹 REAPPLY attributes after upload
-      selectedElement.autoplay = selectedElement.hasAttribute("autoplay");
-      selectedElement.loop = selectedElement.hasAttribute("loop");
-      selectedElement.muted = selectedElement.hasAttribute("muted");
-      selectedElement.controls = selectedElement.hasAttribute("controls");
-
-      selectedElement.load(); // Reload video to show new source
-      if (onUpdate) onUpdate();
-    }
+        selectedElement.load(); // Reload video to show new source
+        if (onUpdate) onUpdate();
+      }
+    };
+    reader.readAsDataURL(file);
   };
-  reader.readAsDataURL(file);
-};
-
 
   const handleReplace = () => {
     fileInputRef.current?.click();
