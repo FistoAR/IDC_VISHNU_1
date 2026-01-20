@@ -66,13 +66,14 @@ const autoPickThumbnailFromVideo = (selectedElement, onUpdate) => {
 
 const VideoEditor = ({ selectedElement, onUpdate }) => {
   const fileInputRef = useRef(null);
-  const [controlVisibility, setControlVisibility] = useState("always");
   const [openGallery, setOpenGallery] = useState(false);
   const [tab, setTab] = useState("gallery");
   // Set default to true so it is open by default
   const [open, setOpen] = useState(true);
   const coverInputRef = useRef(null);
   const [previewSrc, setPreviewSrc] = useState(null);
+  const [posterSrc, setPosterSrc] = useState(null);
+
 
   const debouncedUpdate = useRef(
     debounce((...args) => onUpdate?.(...args), 150)
@@ -100,46 +101,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
   const selectedElementRef = useRef(selectedElement);
   selectedElementRef.current = selectedElement;
 
-  // Sync state FROM selectedElement when selection changes
-  useEffect(() => {
-    if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
-    const isHidden = selectedElement.classList.contains("hide-controls");
-    setControlVisibility(isHidden ? "hover" : "always");
-  }, [selectedElement]);
-
-  // Apply state TO selectedElement (only when controlVisibility changes)
-  useEffect(() => {
-    const el = selectedElementRef.current;
-    if (!el || el.tagName !== "VIDEO") return;
-
-    if (controlVisibility === "always") {
-      el.controls = true;
-      el.classList.remove("hide-controls");
-    } else if (controlVisibility === "hover") {
-      el.controls = true;
-      el.classList.add("hide-controls");
-    }
-  }, [controlVisibility]);
-
-  const handleControlVisibilityChange = (value) => {
-    if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
-
-    setControlVisibility(value);
-
-    if (value === "always") {
-      selectedElement.controls = true;
-      selectedElement.classList.remove("hide-controls");
-    }
-
-    if (value === "hover") {
-      selectedElement.controls = true; // IMPORTANT
-      selectedElement.classList.add("hide-controls");
-    }
-
-    debouncedUpdate({
-      controlsVisibility: value,
-    });
-  };
 
 
   if (!selectedElement) {
@@ -150,6 +111,26 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
       </div>
     );
   }
+
+  useEffect(() => {
+    if (selectedElement?.tagName === "VIDEO") {
+      setPosterSrc(selectedElement.poster || null);
+    }
+  }, [selectedElement]);
+
+  useEffect(() => {
+  if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
+
+  // controls must be enabled for hover to work
+  selectedElement.controls = true;
+
+  // always hide by default
+  selectedElement.classList.add("hide-controls");
+
+  debouncedUpdate();
+}, [selectedElement]);
+
+
 
   const galleryPreviews = [
     "https://www.abcconsultants.in/wp-content/uploads/2023/07/Industrial.jpg",
@@ -248,19 +229,64 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
   const handleCoverUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedElement) return;
+
     if (selectedElement.tagName !== "VIDEO") {
       alert("Cover image works only for video files");
       return;
     }
+
     const reader = new FileReader();
+
     reader.onload = (event) => {
       const result = event.target.result;
-      selectedElement.setAttribute("poster", result);
+
+      // set poster on video
+      selectedElement.poster = result;
+
+      // update UI preview
       setPosterSrc(result);
-      debouncedUpdate();
+
+      // persist in editor state
+      debouncedUpdate({
+        poster: result,
+      });
     };
+
     reader.readAsDataURL(file);
   };
+
+  const autoPickThumbnailFromVideo = (videoEl, onUpdate, setPosterSrc) => {
+    if (!videoEl || videoEl.tagName !== "VIDEO") return;
+
+    // ensure metadata is loaded
+    if (videoEl.readyState < 2) {
+      videoEl.onloadeddata = () =>
+        autoPickThumbnailFromVideo(videoEl, onUpdate, setPosterSrc);
+      return;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+
+    const thumbnail = canvas.toDataURL("image/png");
+
+    // 🔥 FIX poster on video
+    videoEl.poster = thumbnail;
+
+    // 🔥 update UI preview box
+    setPosterSrc(thumbnail);
+
+    // 🔥 persist in editor/store
+    onUpdate({
+      poster: thumbnail,
+    });
+  };
+
+
 
   return (
     <div className="space-y-4">
@@ -417,36 +443,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
             </div>
           </div>
 
-          {/* VISIBILITY CONTROLS */}
-          <div className="mt-3">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">
-              Control Button Visibility
-            </h3>
-            <div className="flex items-center bg-gray-50 gap-2" />
-            <div className="space-y-2">
-              <label className="flex items-center gap-4 cursor-pointer mt-2">
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={controlVisibility === "always"}
-                  onChange={() => handleControlVisibilityChange("always")}
-                  className="accent-indigo-600"
-                />
-                <span className="text-xs text-gray-700">Always Visible</span>
-              </label>
-              <label className="flex items-center gap-4 cursor-pointer mt-2">
-                <input
-                  type="radio"
-                  name="visibility"
-                  checked={controlVisibility === "hover"}
-                  onChange={() => handleControlVisibilityChange("hover")}
-                  className="accent-indigo-600"
-                />
-                <span className="text-xs text-gray-700">Show on Hover</span>
-              </label>
-            </div>
-          </div>
-
           {/* COVER IMAGE */}
           <div className="bg-white rounded-lg p-3">
             {/* Header */}
@@ -477,34 +473,42 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
                     type="radio"
                     name="cover"
                     onChange={() =>
-                      autoPickThumbnailFromVideo(selectedElement, debouncedUpdate)
+                      autoPickThumbnailFromVideo(
+                        selectedElement,
+                        debouncedUpdate,
+                        setPosterSrc
+                      )
                     }
                     className="accent-indigo-600"
                   />
+
                   <span className="text-xs text-gray-700">
                     Auto Pick from video
                   </span>
                 </label>
               </div>
 
-              {/* RIGHT UPLOAD BOX */}
               <div
                 onClick={() => coverInputRef.current?.click()}
-                className="w-36 h-20 border-2 border-dashed rounded-lg flex flex-col items-center justify-center text-gray-400 cursor-pointer hover:border-indigo-500 hover:text-indigo-600 transition"
+                className="w-36 h-20 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer
+             hover:border-indigo-500 transition overflow-hidden"
               >
-                {selectedElement?.poster ? (
+                {posterSrc ? (
                   <img
-                    src={selectedElement.poster}
-                    alt="Cover"
-                    className="w-full h-full object-cover rounded-md"
+                    src={posterSrc}
+                    alt="Video Cover"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
-                  <>
+                  <div className="flex flex-col items-center text-gray-400 hover:text-indigo-600">
                     <Upload size={14} />
-                    <p className="text-xs text-center mt-1">File Format : JPG, PNG</p>
-                  </>
+                    <p className="text-xs mt-1 text-center">
+                      File Format : JPG, PNG
+                    </p>
+                  </div>
                 )}
               </div>
+
             </div>
           </div>
 

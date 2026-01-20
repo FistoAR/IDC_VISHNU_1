@@ -26,9 +26,10 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
   const [isAnimating, setIsAnimating] = useState(false);
   const [currentView, setCurrentView] = useState([1]);
   const [centerOffset, setCenterOffset] = useState(0);
-  const [animationTargetView, setAnimationTargetView] = useState(null);
+  const [animationTargetView, setAnimationTargetView] = useState(false);
 
   const animationEndTimerRef = useRef(null);
+
 
   const totalPages = pages.length;
 
@@ -42,7 +43,7 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
 
     const visiblePages = Array.isArray(view) ? view.filter(p => p > 0) : [view];
 
-    if (visiblePages.length === 1 && visiblePages[0] === 1) {
+    if (visiblePages.length === 1 && (visiblePages[0] === 1 || visiblePages[0] === 0)) {
       return -PAGE_WIDTH / 2;
     }
 
@@ -50,12 +51,14 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       return PAGE_WIDTH / 2;
     }
 
-    if (Array.isArray(view) && view.length === 2 && view[0] === 0 && view[1] > 0) {
-      return -PAGE_WIDTH / 2;
-    }
+    // Handle array views [0, 1] or [1, 0] for cover
+    if (visiblePages.length === 2) {
+      if (visiblePages[0] === 1 && visiblePages[1] === 0) return -PAGE_WIDTH / 2;
+      if (visiblePages[0] === 0 && visiblePages[1] === 1) return -PAGE_WIDTH / 2;
 
-    if (Array.isArray(view) && view.length === 2 && view[1] === 0 && view[0] > 0) {
-      return PAGE_WIDTH / 2;
+      // Final page centering (if it's an even page at the end)
+      if (visiblePages[0] === totalPages && visiblePages[1] === 0 && totalPages % 2 === 0) return PAGE_WIDTH / 2;
+      if (visiblePages[0] === 0 && visiblePages[1] === totalPages && totalPages % 2 === 0) return PAGE_WIDTH / 2;
     }
 
     return 0;
@@ -76,7 +79,14 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
     if (isAnimating) {
       if (animationTargetView) {
         const targetOffset = calculateTargetOffset(animationTargetView);
-        setCenterOffset(targetOffset);
+
+        // If moving FROM cover TO internal pages, add a tiny delay to prevent "collapse"
+        const isFromCover = currentView.includes(1);
+        if (isFromCover && targetOffset === 0) {
+          setTimeout(() => setCenterOffset(targetOffset), 100);
+        } else {
+          setCenterOffset(targetOffset);
+        }
       }
       return;
     }
@@ -119,6 +129,9 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       }
     };
   }, []);
+
+  // Page duration - tune for snap vs realism
+  const FLIP_DURATION = 600;
 
   const playFlipSound = useCallback(() => {
     if (audioRef.current) {
@@ -522,12 +535,12 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       $flipbook.turn({
         width: bookWidth,
         height: bookHeight,
-        autoCenter: true,
+        autoCenter: false, // Turn off internal centering to use our custom logic
         display: isSingleView ? 'single' : 'double',
         acceleration: true,
         gradients: true,
         elevation: 50,
-        duration: 800,
+        duration: FLIP_DURATION,
         page: 1,
         direction: 'ltr',
 
@@ -576,6 +589,11 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       const initialView = $flipbook.turn('view');
       setCurrentView(initialView || [1]);
       setCurrentPage(1);
+
+      if (calculateTargetOffsetRef.current) {
+        setCenterOffset(calculateTargetOffsetRef.current(initialView));
+      }
+
       setIsReady(true);
       initializationRef.current = false;
 
@@ -803,14 +821,11 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       }
       
       #flipbook.double-mode .odd {
-        background: linear-gradient(to right, #e5e5e5 0%, #f0f0f0 2%, #f8f8f8 4%, #ffffff 8%, #ffffff 100%);
+        background: linear-gradient(to right, #f8f8f8 0%, #ffffff 5%, #ffffff 100%);
         border-radius: 0 3px 3px 0;
         box-shadow: 
-          inset 15px 0 30px -10px rgba(0, 0, 0, 0.18),
-          inset 8px 0 15px -5px rgba(0, 0, 0, 0.1),
-          inset 4px 0 8px -2px rgba(0, 0, 0, 0.06),
-          4px 0 12px rgba(0, 0, 0, 0.06),
-          0 6px 20px rgba(0, 0, 0, 0.1);
+          inset 15px 0 25px -10px rgba(0, 0, 0, 0.15),
+          inset 1px 0 0 rgba(0,0,0,0.05); /* Subtle split line */
       }
       
       #flipbook.double-mode .odd::before {
@@ -830,14 +845,11 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       }
       
       #flipbook.double-mode .even {
-        background: linear-gradient(to left, #e5e5e5 0%, #f0f0f0 2%, #f8f8f8 4%, #ffffff 8%, #ffffff 100%);
+        background: linear-gradient(to left, #f8f8f8 0%, #ffffff 5%, #ffffff 100%);
         border-radius: 3px 0 0 3px;
         box-shadow: 
-          inset -15px 0 30px -10px rgba(0, 0, 0, 0.18),
-          inset -8px 0 15px -5px rgba(0, 0, 0, 0.1),
-          inset -4px 0 8px -2px rgba(0, 0, 0, 0.06),
-          -4px 0 12px rgba(0, 0, 0, 0.06),
-          0 6px 20px rgba(0, 0, 0, 0.1);
+          inset -15px 0 25px -10px rgba(0, 0, 0, 0.15),
+          inset -1px 0 0 rgba(0,0,0,0.05); /* Subtle split line */
       }
       
       #flipbook.double-mode .even::after {
@@ -885,30 +897,35 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
         left: 50%;
         top: 0;
         bottom: 0;
-        width: 8px;
+        width: 1px;
         transform: translateX(-50%);
-        background: linear-gradient(to right, 
-          rgba(0, 0, 0, 0.15) 0%, 
-          rgba(0, 0, 0, 0.08) 20%,
-          rgba(255, 255, 255, 0.1) 50%,
-          rgba(0, 0, 0, 0.08) 80%,
-          rgba(0, 0, 0, 0.15) 100%
-        );
-        z-index: 1000;
+        background: rgba(0, 0, 0, 0.2);
+        z-index: 2001;
         pointer-events: none;
       }
       
+      /* Realistic Gutter/Crease Effect */
       #flipbook.double-mode::before {
         content: '';
         position: absolute;
         left: 50%;
         top: 0;
         bottom: 0;
-        width: 1px;
+        width: 60px;
         transform: translateX(-50%);
-        background: rgba(255, 255, 255, 0.3);
-        z-index: 1001;
+        background: linear-gradient(to right, 
+          rgba(0, 0, 0, 0) 0%, 
+          rgba(0, 0, 0, 0.08) 20%,
+          rgba(0, 0, 0, 0.2) 50%,
+          rgba(0, 0, 0, 0.08) 80%,
+          rgba(0, 0, 0, 0) 100%
+        );
+        z-index: 2000;
         pointer-events: none;
+      }
+      
+      #flipbook .page {
+        box-shadow: 0 0 10px rgba(0,0,0,0.1);
       }
       
       #flipbook .gradient {
@@ -935,12 +952,11 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       }
       
       #flipbook .turn-page {
-        z-index: 500 !important;
+        z-index: auto;
       }
       
       #flipbook .page.turning {
-        z-index: 1000 !important;
-        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25), 0 8px 25px rgba(0, 0, 0, 0.15) !important;
+        box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25);
       }
     `;
 
@@ -1047,17 +1063,20 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
             style={{
               transform: `translateX(${centerOffset}px)`,
               transition: isAnimating
-                ? 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-                : 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+                ? `transform ${FLIP_DURATION}ms cubic-bezier(0.165, 0.84, 0.44, 1)`
+                : 'transform 0.4s ease-out'
             }}
           >
             {/* Turn.js target element */}
             <div
               id="flipbook"
               ref={flipbookRef}
-              className={`relative shadow-[0_10px_40px_rgba(0,0,0,0.2)] ${isSingleView ? 'single-mode' : 'double-mode'}`}
+              className={`relative ${isSingleView ? 'single-mode' : 'double-mode'}`}
               style={{
-                visibility: isReady ? 'visible' : 'hidden'
+                visibility: isReady ? 'visible' : 'hidden',
+                boxShadow: isSingleView
+                  ? '0 10px 30px rgba(0,0,0,0.15)'
+                  : '0 20px 60px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.1)'
               }}
             />
           </div>

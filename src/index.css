@@ -27,7 +27,7 @@
 
 
 
-video.hide-controls::-webkit-media-controls {
+.hide-controls::-webkit-media-controls {
   opacity: 0;
   pointer-events: none;
 }
@@ -35,9 +35,7 @@ video.hide-controls::-webkit-media-controls {
 video.hide-controls:hover::-webkit-media-controls {
   opacity: 1;
   pointer-events: auto;
+  transition: opacity 0.2s ease;
 }
 
-video::-webkit-media-controls {
-  transition: opacity 0.25s ease;
-}
 

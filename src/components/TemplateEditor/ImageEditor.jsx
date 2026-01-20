@@ -1,9 +1,4 @@
 // ImageEditor.jsx - Context-sensitive image editing panel
-import React, { useRef } from 'react';
-import {
-  Image as ImageIcon, Upload, RefreshCw, Crop, Trash2,
-  Maximize2, Sliders
-} from 'lucide-react';
 
 const ImageEditor = ({ selectedElement, onUpdate }) => {
   const fileInputRef = useRef(null);
@@ -106,7 +101,6 @@ const ImageEditor = ({ selectedElement, onUpdate }) => {
           <RefreshCw size={16} />
           Reset Size
         </button>
-
         <button
           onClick={handleDelete}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 rounded-lg text-sm font-medium transition-colors"
@@ -115,7 +109,6 @@ const ImageEditor = ({ selectedElement, onUpdate }) => {
           Delete Image
         </button>
       </div>
-
       {/* Dimensions */}
       <div className="space-y-3 pt-3 border-t border-gray-200">
         <div className="flex items-center justify-between">

@@ -204,6 +204,19 @@ const InteractionPanel = ({ selectedElement, onUpdate }) => {
     selectedElement.setAttribute('data-interaction-trigger', newTrigger);
     onUpdate(selectedElement.id, { trigger: newTrigger });
   };
+  const handleTooltipTextChange = (val) => {
+    setTooltipText(val);
+    applyInteraction('tooltip', null, val);
+  };
+
+  const handleTooltipColorChange = (color, isBackground = false) => {
+    if (isBackground) {
+      setTooltipFillColor(color);
+    } else {
+      setTooltipTextColor(color);
+    }
+    applyInteraction('tooltip', null, tooltipText);
+  };
 
   // ================= RENDER INTERFACE =================
 
