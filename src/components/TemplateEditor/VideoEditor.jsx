@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import VideoGalleryModal from "./VideoGalleryModal";
 
-
 const debounce = (fn, delay = 150) => {
   let t;
   return (...args) => {
@@ -59,7 +58,7 @@ const autoPickThumbnailFromVideo = (selectedElement, onUpdate) => {
         video.currentTime = Math.min(1, video.duration / 10);
         capture();
       },
-      { once: true }
+      { once: true },
     );
   }
 };
@@ -73,10 +72,10 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
   const coverInputRef = useRef(null);
   const [previewSrc, setPreviewSrc] = useState(null);
   const [posterSrc, setPosterSrc] = useState(null);
-
+  const [videoType, setVideoType] = useState("fit"); // Add this new state
 
   const debouncedUpdate = useRef(
-    debounce((...args) => onUpdate?.(...args), 150)
+    debounce((...args) => onUpdate?.(...args), 150),
   ).current;
 
   // Sync previewSrc with selectedElement
@@ -86,9 +85,9 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     if (selectedElement.tagName === "VIDEO") {
       setPreviewSrc(
         selectedElement.currentSrc ||
-        selectedElement.src ||
-        selectedElement.querySelector("source")?.src ||
-        null
+          selectedElement.src ||
+          selectedElement.querySelector("source")?.src ||
+          null,
       );
     } else if (selectedElement.tagName === "IFRAME") {
       setPreviewSrc(selectedElement.src || null);
@@ -100,8 +99,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
   // Keep a ref to access current element inside effects without adding it to dependencies
   const selectedElementRef = useRef(selectedElement);
   selectedElementRef.current = selectedElement;
-
-
 
   if (!selectedElement) {
     return (
@@ -119,18 +116,16 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
   }, [selectedElement]);
 
   useEffect(() => {
-  if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
+    if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
 
-  // controls must be enabled for hover to work
-  selectedElement.controls = true;
+    // controls must be enabled for hover to work
+    selectedElement.controls = true;
 
-  // always hide by default
-  selectedElement.classList.add("hide-controls");
+    // always hide by default
+    selectedElement.classList.add("hide-controls");
 
-  debouncedUpdate();
-}, [selectedElement]);
-
-
+    debouncedUpdate();
+  }, [selectedElement]);
 
   const galleryPreviews = [
     "https://www.abcconsultants.in/wp-content/uploads/2023/07/Industrial.jpg",
@@ -141,67 +136,92 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     "https://7409217.fs1.hubspotusercontent-na1.net/hubfs/7409217/Imported_Blog_Media/10556694-scaled.jpg",
   ];
 
+  const handleVideoTypeChange = useCallback(
+    (type) => {
+      if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
 
+      setVideoType(type);
 
-  const replaceTemplateWithUrl = useCallback((url) => {
-    if (!selectedElement || !url) return;
-    const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
-    const isDirectVideo = url.match(/\.(mp4|webm|ogg)$/i);
-    let newElement;
+      // Apply object-fit styles
+      const objectFitMap = {
+        fit: "contain",
+        fill: "cover",
+        crop: "cover",
+      };
 
-    if (isYouTube) {
-      let embedUrl = url;
-      if (url.includes("watch?v="))
-        embedUrl = `https://www.youtube.com/embed/${url.split("v=")[1]}`;
-      if (url.includes("youtu.be"))
-        embedUrl = `https://www.youtube.com/embed/${url.split("/").pop()}`;
-      newElement = document.createElement("iframe");
-      newElement.src = embedUrl;
-      newElement.allow =
-        "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
-      newElement.allowFullscreen = true;
-    } else if (isDirectVideo) {
-      newElement = document.createElement("video");
-      newElement.src = url;
-      newElement.controls = true;
-    } else {
-      newElement = document.createElement("iframe");
-      newElement.src = url;
-      newElement.allowFullscreen = true;
-    }
+      selectedElement.style.objectFit = objectFitMap[type];
+      selectedElement.style.objectPosition = "center";
 
-    newElement.style.width = selectedElement.style.width || "560px";
-    newElement.style.height = selectedElement.style.height || "315px";
-    selectedElement.replaceWith(newElement);
-    debouncedUpdate(newElement);
-  }, [selectedElement, debouncedUpdate]);
+      debouncedUpdate();
+    },
+    [selectedElement, debouncedUpdate],
+  );
 
-  const toggleAttribute = useCallback((attr) => {
-    if (!selectedElement) return;
-    const isEnabled = selectedElement.hasAttribute(attr);
-    if (isEnabled) {
-      selectedElement.removeAttribute(attr);
-    } else {
-      selectedElement.setAttribute(attr, "");
-    }
-    switch (attr) {
-      case "autoplay":
-        selectedElement.autoplay = !isEnabled;
-        break;
-      case "loop":
-        selectedElement.loop = !isEnabled;
-        break;
-      case "muted":
-        selectedElement.muted = !isEnabled;
-        break;
-      case "controls":
-        selectedElement.controls = !isEnabled;
-        break;
-      default:
-        break;
-    }
-    debouncedUpdate();
-  }, [selectedElement, debouncedUpdate]);
+  const replaceTemplateWithUrl = useCallback(
+    (url) => {
+      if (!selectedElement || !url) return;
+      const isYouTube = url.includes("youtube.com") || url.includes("youtu.be");
+      const isDirectVideo = url.match(/\.(mp4|webm|ogg)$/i);
+      let newElement;
+
+      if (isYouTube) {
+        let embedUrl = url;
+        if (url.includes("watch?v="))
+          embedUrl = `https://www.youtube.com/embed/${url.split("v=")[1]}`;
+        if (url.includes("youtu.be"))
+          embedUrl = `https://www.youtube.com/embed/${url.split("/").pop()}`;
+        newElement = document.createElement("iframe");
+        newElement.src = embedUrl;
+        newElement.allow =
+          "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+        newElement.allowFullscreen = true;
+      } else if (isDirectVideo) {
+        newElement = document.createElement("video");
+        newElement.src = url;
+        newElement.controls = true;
+      } else {
+        newElement = document.createElement("iframe");
+        newElement.src = url;
+        newElement.allowFullscreen = true;
+      }
+
+      newElement.style.width = selectedElement.style.width || "560px";
+      newElement.style.height = selectedElement.style.height || "315px";
+      selectedElement.replaceWith(newElement);
+      debouncedUpdate(newElement);
+    },
+    [selectedElement, debouncedUpdate],
+  );
+
+  const toggleAttribute = useCallback(
+    (attr) => {
+      if (!selectedElement) return;
+      const isEnabled = selectedElement.hasAttribute(attr);
+      if (isEnabled) {
+        selectedElement.removeAttribute(attr);
+      } else {
+        selectedElement.setAttribute(attr, "");
+      }
+      switch (attr) {
+        case "autoplay":
+          selectedElement.autoplay = !isEnabled;
+          break;
+        case "loop":
+          selectedElement.loop = !isEnabled;
+          break;
+        case "muted":
+          selectedElement.muted = !isEnabled;
+          break;
+        case "controls":
+          selectedElement.controls = !isEnabled;
+          break;
+        default:
+          break;
+      }
+      debouncedUpdate();
+    },
+    [selectedElement, debouncedUpdate],
+  );
 
   const hasAttribute = (attr) => selectedElement?.hasAttribute(attr);
 
@@ -286,8 +306,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     });
   };
 
-
-
   return (
     <div className="space-y-4">
       {/* SECTION HEADER WITH TOGGLE */}
@@ -326,6 +344,22 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
             className="hidden"
             onChange={handleCoverUpload}
           />
+
+          {/* SELECT IMAGE TYPE DROPDOWN */}
+          <div className="flex items-center gap-3 mb-4">
+            <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+              Select the Image type :
+            </label>
+            <select
+              value={videoType}
+              onChange={(e) => handleVideoTypeChange(e.target.value)}
+              className="flex-1 px-2 py-1 mt-3 mb-3 border border-gray-300 rounded-md text-sm focus:border-transparent bg-white cursor-pointer"
+            >
+              <option value="fit">Fit</option>
+              <option value="fill">Fill</option>
+              <option value="crop">Crop</option>
+            </select>
+          </div>
 
           <div className="flex gap-4 items-center">
             <div className="w-18 h-18 border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center shrink-0">
@@ -373,7 +407,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
               onBlur={(e) => replaceTemplateWithUrl(e.target.value)}
             />
           </div>
-
           {/* GALLERY PREVIEW BOX */}
           <div
             onClick={() => setOpenGallery(true)}
@@ -390,8 +423,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
                 />
               ))}
             </div>
-
-
             {/* Overlay content */}
             <div className="relative z-10 flex flex-col items-center justify-center h-full bg-black/40 hover:bg-black/50 transition-colors">
               <div className="flex items-center gap-2 text-white">
@@ -416,33 +447,35 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
               </p>
               <button
                 onClick={() => toggleAttribute("autoplay")}
-                className={`w-10 h-5 flex items-center rounded-full p-1 transition ${hasAttribute("autoplay") ? "bg-indigo-600" : "bg-gray-300"
-                  }`}
+                className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
+                  hasAttribute("autoplay") ? "bg-indigo-600" : "bg-gray-300"
+                }`}
               >
                 <div
-                  className={`w-3 h-3 bg-white rounded-full transition-transform ${hasAttribute("autoplay") ? "translate-x-5" : "translate-x-0"
-                    }`}
+                  className={`w-3 h-3 bg-white rounded-full transition-transform ${
+                    hasAttribute("autoplay") ? "translate-x-5" : "translate-x-0"
+                  }`}
                 />
               </button>
             </div>
-
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs text-gray-600">
                 Loop (repeat continuously)
               </p>
               <button
                 onClick={() => toggleAttribute("loop")}
-                className={`w-10 h-5 flex items-center rounded-full p-1 transition ${hasAttribute("loop") ? "bg-indigo-600" : "bg-gray-300"
-                  }`}
+                className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
+                  hasAttribute("loop") ? "bg-indigo-600" : "bg-gray-300"
+                }`}
               >
                 <div
-                  className={`w-3 h-3 bg-white rounded-full transition-transform ${hasAttribute("loop") ? "translate-x-5" : "translate-x-0"
-                    }`}
+                  className={`w-3 h-3 bg-white rounded-full transition-transform ${
+                    hasAttribute("loop") ? "translate-x-5" : "translate-x-0"
+                  }`}
                 />
               </button>
             </div>
           </div>
-
           {/* COVER IMAGE */}
           <div className="bg-white rounded-lg p-3">
             {/* Header */}
@@ -452,7 +485,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
               </h3>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
-
             <div className="flex items-start justify-between gap-6">
               {/* LEFT OPTIONS */}
               <div className="space-y-4">
@@ -467,7 +499,6 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
                     Upload from your File
                   </span>
                 </label>
-
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input
                     type="radio"
@@ -476,18 +507,16 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
                       autoPickThumbnailFromVideo(
                         selectedElement,
                         debouncedUpdate,
-                        setPosterSrc
+                        setPosterSrc,
                       )
                     }
                     className="accent-indigo-600"
                   />
-
                   <span className="text-xs text-gray-700">
                     Auto Pick from video
                   </span>
                 </label>
               </div>
-
               <div
                 onClick={() => coverInputRef.current?.click()}
                 className="w-36 h-20 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer
@@ -508,14 +537,11 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
                   </div>
                 )}
               </div>
-
             </div>
           </div>
-
         </div>
       )}
-
-      {/* GALLERY MODAL */}
+      {/*GALLERY MODAL*/}
       {openGallery && (
         <VideoGalleryModal
           tab={tab}
@@ -528,5 +554,4 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     </div>
   );
 };
-
 export default VideoEditor;

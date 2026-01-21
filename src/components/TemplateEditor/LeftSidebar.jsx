@@ -1,7 +1,6 @@
 // LeftSidebar.jsx - Redesigned with Hover 3-Dots -> Menu Interaction
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Copy, Layout, RotateCcw, Trash2, ArrowLeft, MoreHorizontal, Edit2 } from 'lucide-react';
-
 const LeftSidebar = ({
   pages,
   currentPage,
@@ -42,14 +41,12 @@ const LeftSidebar = ({
       setEditingPageId(page.id);
       setEditingName(page.name);
   };
-
   const handleRenameSubmit = (pageId) => {
       if (editingName.trim()) {
           renamePage(pageId, editingName.trim());
       }
       setEditingPageId(null);
   };
-
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 h-full">
       {/* Header */}
@@ -63,7 +60,6 @@ const LeftSidebar = ({
           New
         </button>
       </div>
-
       {/* Pages List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-white" onClick={() => setActiveMenuPage(null)}>
         {pages.map((page, idx) => (
@@ -94,7 +90,6 @@ const LeftSidebar = ({
                         <span className="text-xs">Page {idx + 1}</span>
                     </div>
                   )}
-
                   {/* 3-Dots Button (Show on Hover or if Menu is Active) */}
                   {(hoveredPage === idx || activeMenuPage === idx) && (
                       <button
@@ -105,7 +100,6 @@ const LeftSidebar = ({
                           <MoreHorizontal size={16} />
                       </button>
                   )}
-
                   {/* Menu Overlay */}
                   {activeMenuPage === idx && (
                     <div 
@@ -152,8 +146,7 @@ const LeftSidebar = ({
                   )}
                 </div>
              </div>
-             
-             {/* Page Number / Name */}
+             {/*PageNumber/Name*/}
              <div className="text-center mt-1 px-1">
                 {editingPageId === page.id ? (
                    <input 
