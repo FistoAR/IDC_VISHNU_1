@@ -14,8 +14,6 @@ export default defineConfig({
   server: {
     host: '0.0.0.0', // <-- IMPORTANT: listen on all interfaces for ngrok
     port: 5173,      // <-- optional: specify the port you run ngrok on
-    allowedHosts: [
-      'tomeka-sultanlike-presuccessfully.ngrok-free.dev'
-    ],
+    allowedHosts: true 
   }
 });

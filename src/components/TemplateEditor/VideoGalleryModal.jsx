@@ -59,14 +59,7 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
     >
       {/* Tab Headers */}
       <div className="flex px-4 pt-3 border-b bg-white">
-        <button
-          onClick={() => setActiveTab("gallery")}
-          className={`flex-1 pb-2 text-[12px] font-bold transition-all ${
-            activeTab === "gallery" ? "border-b-2 border-black text-black" : "border-transparent text-gray-400"
-          }`}
-        >
-          Video Gallery
-        </button>
+    
         <button
           onClick={() => setActiveTab("uploaded")}
           className={`flex-1 pb-2 text-[12px] font-bold transition-all ${
@@ -79,26 +72,7 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 bg-white">
-        {activeTab === "gallery" ? (
-          <div>
-            <h3 className="text-[11px] font-bold text-black mb-3 uppercase tracking-wider">Recent</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {galleryImages.map((img, i) => (
-                <div key={i} className="flex flex-col items-center">
-                  <div
-                    onClick={() => setSelectedSrc(img.src)}
-                    className={`w-full aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all ${
-                      selectedSrc === img.src ? "border-black shadow-md" : "border-transparent bg-gray-50"
-                    }`}
-                  >
-                    <img src={img.src} className="w-full h-full object-cover" alt="" />
-                  </div>
-                  <span className="text-[9px] mt-1 text-gray-500 text-center truncate w-full">{img.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
+        
           <div className="flex flex-col h-full">
             <h3 className="text-[11px] font-bold text-black mb-3 uppercase tracking-wider">Upload your file</h3>
             <input ref={fileRef} type="file" accept="image/*,video/*" onChange={handleUpload} className="hidden" />
@@ -129,7 +103,7 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
               ))}
             </div>
           </div>
-        )}
+   
       </div>
 
       {/* Footer */}

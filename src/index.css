@@ -25,8 +25,6 @@
   scrollbar-color: #e2e8f0 transparent;
 }
 
-
-
 .hide-controls::-webkit-media-controls {
   opacity: 0;
   pointer-events: none;
@@ -38,4 +36,7 @@ video.hide-controls:hover::-webkit-media-controls {
   transition: opacity 0.2s ease;
 }
 
-
+/* Hide the three dots menu button */
+video::-webkit-media-controls-overflow-menu-button {
+  display: none !important;
+}

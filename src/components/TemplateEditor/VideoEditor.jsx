@@ -1,5 +1,6 @@
 // VideoEditor.jsx - Context-sensitive video editing panel
 import { useState, useRef, useEffect, useCallback } from "react";
+import ReactPlayer from "react-player";
 
 import {
   Video as VideoIcon,
@@ -15,6 +16,20 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import {
+  MediaController,
+  MediaControlBar,
+  MediaTimeRange,
+  MediaTimeDisplay,
+  MediaVolumeRange,
+  MediaPlaybackRateButton,
+  MediaPlayButton,
+  MediaSeekBackwardButton,
+  MediaSeekForwardButton,
+  MediaMuteButton,
+  MediaFullscreenButton,
+} from "media-chrome/react";
+
 import VideoGalleryModal from "./VideoGalleryModal";
 
 const debounce = (fn, delay = 150) => {
@@ -185,8 +200,35 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
         newElement.allowFullscreen = true;
       }
 
-      newElement.style.width = selectedElement.style.width || "560px";
-      newElement.style.height = selectedElement.style.height || "315px";
+      // Get computed styles and dimensions from original element
+      const computedStyle = window.getComputedStyle(selectedElement);
+      const width =
+        selectedElement.getAttribute("width") ||
+        selectedElement.style.width ||
+        computedStyle.width ||
+        "560px";
+      const height =
+        selectedElement.getAttribute("height") ||
+        selectedElement.style.height ||
+        computedStyle.height ||
+        "315px";
+
+      // Copy all inline styles from selectedElement to newElement
+      newElement.style.cssText = selectedElement.style.cssText;
+      // Set width and height as both HTML attributes and CSS styles
+      newElement.setAttribute("width", width);
+      newElement.setAttribute("height", height);
+      newElement.style.width = width;
+      newElement.style.height = height;
+      newElement.style.display = computedStyle.display || "block";
+      // Copy className for any CSS class styling
+      newElement.className = selectedElement.className;
+      // Copy data attributes
+      Array.from(selectedElement.attributes).forEach((attr) => {
+        if (attr.name.startsWith("data-")) {
+          newElement.setAttribute(attr.name, attr.value);
+        }
+      });
       selectedElement.replaceWith(newElement);
       debouncedUpdate(newElement);
     },
@@ -197,23 +239,26 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     (attr) => {
       if (!selectedElement) return;
       const isEnabled = selectedElement.hasAttribute(attr);
-      if (isEnabled) {
-        selectedElement.removeAttribute(attr);
-      } else {
+      const newState = !isEnabled;
+
+      if (newState) {
         selectedElement.setAttribute(attr, "");
+      } else {
+        selectedElement.removeAttribute(attr);
       }
+
       switch (attr) {
         case "autoplay":
-          selectedElement.autoplay = !isEnabled;
+          selectedElement.autoplay = newState;
           break;
         case "loop":
-          selectedElement.loop = !isEnabled;
+          selectedElement.loop = newState;
           break;
         case "muted":
-          selectedElement.muted = !isEnabled;
+          selectedElement.muted = newState;
           break;
         case "controls":
-          selectedElement.controls = !isEnabled;
+          selectedElement.controls = newState;
           break;
         default:
           break;
@@ -348,7 +393,7 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
           {/* SELECT IMAGE TYPE DROPDOWN */}
           <div className="flex items-center gap-3 mb-4">
             <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
-              Select the Image type :
+              Select the Video type :
             </label>
             <select
               value={videoType}
@@ -362,14 +407,54 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
           </div>
 
           <div className="flex gap-4 items-center">
-            <div className="w-18 h-18 border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center shrink-0">
+            <div
+              className="w-18 h-18 border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center shrink-0"
+              onContextMenu={(e) => e.preventDefault()}
+            >
               {previewSrc ? (
-                <video
-                  src={previewSrc}
-                  className="w-full h-full object-cover"
-                  muted
-                  preload="metadata"
-                />
+                <div
+                  className="w-full h-full"
+                  onContextMenu={(e) => e.preventDefault()}
+                >
+                  <MediaController
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      aspectRatio: "16/9",
+                    }}
+                  >
+                    <div onContextMenu={(e) => e.preventDefault()}>
+                      <ReactPlayer
+                        slot="media"
+                        url={previewSrc}
+                        controls={false}
+                        muted
+                        width="100%"
+                        height="100%"
+                        config={{
+                          file: {
+                            attributes: {
+                              controlsList:
+                                "nodownload noplaybackrate noremoteplayback",
+                              disablePictureInPicture: true,
+                            },
+                          },
+                        }}
+                      />
+                    </div>
+                    <MediaControlBar>
+                      <MediaPlayButton />
+                      <MediaSeekBackwardButton seekOffset={10} />
+                      <MediaSeekForwardButton seekOffset={10} />
+                      <MediaTimeRange />
+                      <MediaTimeDisplay showDuration />
+                      <MediaMuteButton />
+                      <MediaVolumeRange />
+                      <MediaPlaybackRateButton />
+                      <MediaFullscreenButton />
+                    </MediaControlBar>
+                  </MediaController>
+                </div>
               ) : (
                 <div className="text-xs text-gray-400">No Video</div>
               )}

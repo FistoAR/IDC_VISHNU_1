@@ -19,26 +19,9 @@ const GifEditor = ({ selectedElement, onUpdate }) => {
   const fileInputRef = useRef(null);
   const [open, setOpen] = useState(true);
   const [openGallery, setOpenGallery] = useState(false);
-  const [opacity, setOpacity] = useState(100);
 
-  // Sync opacity when element changes
-  useEffect(() => {
-    if (selectedElement) {
-      const currentOpacity = selectedElement.style.opacity;
-      setOpacity(currentOpacity ? Math.round(Number(currentOpacity) * 100) : 100);
-    }
-  }, [selectedElement]);
 
-  const handleOpacityChange = (e) => {
-    const value = Number(e.target.value);
-    setOpacity(value);
-
-    if (selectedElement) {
-      selectedElement.style.opacity = value / 100;
-      onUpdate?.();
-    }
-  };
-
+ 
   // 🔒 Always mark selected image as GIF
   useEffect(() => {
     if (
@@ -179,29 +162,8 @@ const GifEditor = ({ selectedElement, onUpdate }) => {
               </div>
             </div>
 
-            {/* 3. Opacity Section */}
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-sm font-bold text-gray-800">Opacity</h3>
-                <div className="h-px bg-gray-200 w-full mt-1"></div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="relative flex-1 h-2 flex items-center">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={opacity}
-                    onChange={handleOpacityChange}
-                    className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-                  />
-                </div>
-                <span className="text-sm font-semibold text-gray-800 w-10 text-right">
-                  {opacity} %
-                </span>
-              </div>
-            </div>
+     
+            
 
           </div>
         )}
