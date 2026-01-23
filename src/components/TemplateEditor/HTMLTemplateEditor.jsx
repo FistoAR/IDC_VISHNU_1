@@ -11,22 +11,41 @@ const HTMLTemplateEditor = forwardRef(({
   zoom = 100,
   onElementSelect,
   onZoomChange,
-  onPanStart
+  onPanStart,
+  onOpenTemplateModal
 }, ref) => {
   const iframeRef = useRef(null);
   const containerRef = useRef(null);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [selectedElement, setSelectedElement] = useState(null);
+  const debounceRef = useRef(null);
 
-  // Initialize iframe with template content
+  const internalHtmlRef = useRef(templateHTML);
+  const lastPageRef = useRef(currentPage);
+
+  // Initialize iframe with template content and handle updates
   useEffect(() => {
     if (iframeRef.current) {
       const iframe = iframeRef.current;
       const doc = iframe.contentDocument || iframe.contentWindow.document;
       
-      // CRITICAL FIX: Validate if content actually changed to prevent re-renders that kill selection/focus
-      if (doc.documentElement && doc.documentElement.outerHTML === templateHTML) {
+      // Force reload if page changed, even if HTML is same (e.g., multiple blank pages)
+      const pageChanged = lastPageRef.current !== currentPage;
+      if (pageChanged) {
+        lastPageRef.current = currentPage;
+      }
+      
+      // 1. Check against our last known internal state (from edits)
+      // Skip update if HTML hasn't changed AND page hasn't changed
+      if (templateHTML === internalHtmlRef.current && !pageChanged) {
+          return;
+      }
+
+      // 2. Check against actual DOM content (in case of drift or initial load)
+      // But force reload if page changed
+      if (!pageChanged && doc.documentElement && doc.documentElement.outerHTML === templateHTML) {
+        internalHtmlRef.current = templateHTML; // Sync ref
         return;
       }
 
@@ -34,13 +53,16 @@ const HTMLTemplateEditor = forwardRef(({
       doc.open();
       doc.write(templateHTML);
       doc.close();
+      
+      // Sync internal ref
+      internalHtmlRef.current = templateHTML;
 
       // Add editing capabilities
       setTimeout(() => {
         setupEditableElements(doc);
       }, 100);
     }
-  }, [templateHTML, currentPage]);
+  }, [templateHTML]); // Only depend on templateHTML, not currentPage
 
   // Deselect all elements
   const deselectAll = useCallback(() => {
@@ -53,6 +75,9 @@ const HTMLTemplateEditor = forwardRef(({
 
     const videos = doc.querySelectorAll('video');
     videos.forEach(v => v.style.outline = 'none');
+
+    const svgs = doc.querySelectorAll('svg');
+    svgs.forEach(s => s.style.outline = 'none');
     
     const textElements = doc.querySelectorAll('[data-editable="true"]');
     textElements.forEach(el => el.style.outline = 'none');
@@ -73,8 +98,13 @@ const HTMLTemplateEditor = forwardRef(({
       el.removeAttribute('data-editable');
     });
 
-    // Make text elements editable
+    // Select all elements first to avoid reference errors
     const textElements = doc.querySelectorAll('h1, h2, h3, h4, h5, h6, p, span, a, li, td, th, label, div');
+    const images = doc.querySelectorAll('img');
+    const videos = doc.querySelectorAll('video');
+    const svgs = doc.querySelectorAll('svg');
+
+    // Make text elements editable
     textElements.forEach(el => {
       // Skip if it's a container element with children
       if (el.children.length > 0 && el.tagName === 'DIV') return;
@@ -87,10 +117,11 @@ const HTMLTemplateEditor = forwardRef(({
       el.addEventListener('focus', (e) => {
         // Remove selection from other elements
         textElements.forEach(other => {
-          if (other !== el) {
-            other.style.outline = 'none';
-          }
+            if (other !== el) other.style.outline = 'none';
         });
+        images.forEach(i => i.style.outline = 'none');
+        videos.forEach(v => v.style.outline = 'none');
+        svgs.forEach(s => s.style.outline = 'none');
         
         el.style.outline = '2px solid #6366f1';
         el.style.outlineOffset = '2px';
@@ -102,20 +133,23 @@ const HTMLTemplateEditor = forwardRef(({
       
       // Don't remove selection on blur - only when clicking outside
       el.addEventListener('blur', () => {
-        // Don't remove outline - keep it selected
         saveToHistory();
       });
 
       el.addEventListener('input', () => {
-        if (onTemplateChange) {
-          const html = doc.documentElement.outerHTML;
-          onTemplateChange(html);
-        }
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        
+        debounceRef.current = setTimeout(() => {
+            if (onTemplateChange) {
+              const html = doc.documentElement.outerHTML;
+              internalHtmlRef.current = html; // Sync before emitting
+              onTemplateChange(html);
+            }
+        }, 200);
       });
     });
 
     // Make images clickable for replacement
-    const images = doc.querySelectorAll('img');
     images.forEach(img => {
       img.style.cursor = 'pointer';
       img.setAttribute('data-editable', 'true');
@@ -124,12 +158,12 @@ const HTMLTemplateEditor = forwardRef(({
         e.preventDefault();
         e.stopPropagation();
         
-        // Remove previous selections
         images.forEach(i => i.style.outline = 'none');
-        videos.forEach(v => v.style.outline = 'none'); // Clear videos too
+        videos.forEach(v => v.style.outline = 'none');
+        svgs.forEach(s => s.style.outline = 'none');
         textElements.forEach(t => t.style.outline = 'none');
         
-        img.style.outline = '2px dashed #6366f1';
+        img.style.outline = '2px solid #6366f1';
         img.style.outlineOffset = '2px';
         
         setSelectedElement(img);
@@ -139,23 +173,9 @@ const HTMLTemplateEditor = forwardRef(({
       };
       
       img.addEventListener('click', handleImageClick);
-      
-      img.addEventListener('mouseenter', () => {
-        if (selectedElement !== img) {
-          img.style.outline = '2px dashed rgba(99, 102, 241, 0.3)';
-          img.style.outlineOffset = '2px';
-        }
-      });
-      
-      img.addEventListener('mouseleave', () => {
-        if (selectedElement !== img) {
-          img.style.outline = 'none';
-        }
-      });
     });
 
     // Make Video Elements Clickable and Selectable
-    const videos = doc.querySelectorAll('video');
     videos.forEach(video => {
         video.style.cursor = 'pointer';
         video.setAttribute('data-editable', 'true');
@@ -164,47 +184,53 @@ const HTMLTemplateEditor = forwardRef(({
             e.preventDefault();
             e.stopPropagation();
 
-            // Clear all other selections
             images.forEach(i => i.style.outline = 'none');
             videos.forEach(v => v.style.outline = 'none');
+            svgs.forEach(s => s.style.outline = 'none');
             textElements.forEach(t => t.style.outline = 'none');
 
-            // Set styles for selected video
-            video.style.outline = '2px dashed #ef4444'; // Red outline for videos
+            video.style.outline = '2px solid #6366f1';
             video.style.outlineOffset = '2px';
 
             setSelectedElement(video);
             if (onElementSelect) {
-                onElementSelect(video, 'video'); // Pass 'video' type
+                onElementSelect(video, 'video');
             }
         };
 
-        // If clicking on video controls vs video itself - standard click should work if overlay or controls not blocking
         video.addEventListener('click', handleVideoClick);
+    });
 
-        video.addEventListener('mouseenter', () => {
-            if (selectedElement !== video) {
-                video.style.outline = '2px dashed rgba(239, 68, 68, 0.4)';
-                video.style.outlineOffset = '2px';
-            }
-        });
+    // Make SVG Elements Clickable and Selectable
+    svgs.forEach(svg => {
+        svg.style.cursor = 'pointer';
+        svg.setAttribute('data-editable', 'true');
 
-        video.addEventListener('mouseleave', () => {
-            if (selectedElement !== video) {
-                video.style.outline = 'none';
+        const handleSvgClick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            images.forEach(i => i.style.outline = 'none');
+            videos.forEach(v => v.style.outline = 'none');
+            svgs.forEach(s => s.style.outline = 'none');
+            textElements.forEach(t => t.style.outline = 'none');
+
+            svg.style.outline = '2px solid #6366f1';
+            svg.style.outlineOffset = '2px';
+
+            setSelectedElement(svg);
+            if (onElementSelect) {
+                onElementSelect(svg, 'svg'); 
             }
-        });
+        };
+
+        svg.addEventListener('click', handleSvgClick);
     });
 
     // Click outside to deselect - but ONLY outside the base area
-    // Click outside to deselect - but ONLY outside the base area
     doc.addEventListener('click', (e) => {
       const isEditableElement = e.target.closest('[data-editable="true"]');
-      
-      // If clicking on an editable element, do nothing (handled by its own listener)
       if (isEditableElement) return;
-
-      // If clicking elsewhere in the document (empty space), deselect
       deselectAll();
     });
 
@@ -215,14 +241,32 @@ const HTMLTemplateEditor = forwardRef(({
         outline: 2px solid #6366f1 !important;
         outline-offset: 2px !important;
       }
-      img:hover {
-        opacity: 0.95;
+      /* Hover effects for all editable elements */
+      [data-editable="true"]:hover {
+        background-color: rgba(99, 102, 241, 0.05);
       }
+      
+      /* Text elements - editable */
       [contenteditable]:hover {
         background-color: rgba(99, 102, 241, 0.05);
+        cursor: text;
       }
       [contenteditable]:focus {
         background-color: rgba(99, 102, 241, 0.08);
+      }
+      
+      /* Image, Video, SVG elements */
+      img[data-editable="true"], 
+      video[data-editable="true"], 
+      svg[data-editable="true"] {
+        transition: all 0.2s ease;
+      }
+      
+      img[data-editable="true"]:hover,
+      video[data-editable="true"]:hover,
+      svg[data-editable="true"]:hover {
+        opacity: 0.95;
+        background-color: rgba(99, 102, 241, 0.05);
       }
     `;
     
@@ -367,7 +411,10 @@ const HTMLTemplateEditor = forwardRef(({
 
   // Expose methods to parent
   useImperativeHandle(ref, () => ({
-    deselectAll
+    deselectAll,
+    setInternalHTML: (html) => {
+        internalHtmlRef.current = html;
+    }
   }));
 
   return (
@@ -400,12 +447,23 @@ const HTMLTemplateEditor = forwardRef(({
               width: '595px',
               height: '842px',
               border: 'none',
-              display: 'block',
+              display: !templateHTML ? 'none' : 'block', // Hide iframe if empty to show placeholder cleanly
               transform: `scale(${scale})`,
               transformOrigin: 'top left'
             }}
             sandbox="allow-same-origin allow-scripts"
           />
+
+          {/* Blank Page Placeholder - Text Only */}
+          {!templateHTML && (
+              <div 
+                className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50/50 transition-colors group"
+                onClick={onOpenTemplateModal}
+              >
+                  <span className="text-sm text-gray-300 font-medium mb-1 group-hover:text-gray-400 transition-colors">A4 sheet (210 x 297 mm)</span>
+                  <span className="text-lg text-gray-300 font-medium group-hover:text-gray-400 transition-colors">Choose Templets to Edit page</span>
+              </div>
+          )}
         </div>
       </div>
 

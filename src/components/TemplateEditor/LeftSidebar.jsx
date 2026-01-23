@@ -1,6 +1,7 @@
 // LeftSidebar.jsx - Redesigned with Hover 3-Dots -> Menu Interaction
 import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Copy, Layout, RotateCcw, Trash2, ArrowLeft, MoreHorizontal, Edit2 } from 'lucide-react';
+
 const LeftSidebar = ({
   pages,
   currentPage,
@@ -41,12 +42,14 @@ const LeftSidebar = ({
       setEditingPageId(page.id);
       setEditingName(page.name);
   };
+
   const handleRenameSubmit = (pageId) => {
       if (editingName.trim()) {
           renamePage(pageId, editingName.trim());
       }
       setEditingPageId(null);
   };
+
   return (
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col flex-shrink-0 h-full">
       {/* Header */}
@@ -60,6 +63,7 @@ const LeftSidebar = ({
           New
         </button>
       </div>
+
       {/* Pages List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar bg-white" onClick={() => setActiveMenuPage(null)}>
         {pages.map((page, idx) => (
@@ -78,18 +82,17 @@ const LeftSidebar = ({
                     : 'border-gray-300 hover:border-gray-400'}`}
               >
                 <div className="aspect-[1/1.414] relative bg-gray-50">
-                  {page.thumbnail ? (
-                    <img
-                      src={page.thumbnail}
-                      alt={page.name}
-                      className="w-full h-full object-contain"
-                      draggable={false}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-300">
-                        <span className="text-xs">Page {idx + 1}</span>
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden bg-gray-50">
+                    <div className="transform scale-[0.35] origin-center shadow-sm bg-white">
+                        <iframe
+                            srcDoc={`${page.html}<style>html,body{width:595px;height:842px;margin:0;padding:0;overflow:hidden;transform-origin:0 0;background:white;} * { outline: none !important; }</style>`}
+                            title={`Preview ${page.name}`}
+                            className="w-[595px] h-[842px] border-none bg-white"
+                            scrolling="no"
+                        />
                     </div>
-                  )}
+                  </div>
+
                   {/* 3-Dots Button (Show on Hover or if Menu is Active) */}
                   {(hoveredPage === idx || activeMenuPage === idx) && (
                       <button
@@ -100,6 +103,7 @@ const LeftSidebar = ({
                           <MoreHorizontal size={16} />
                       </button>
                   )}
+
                   {/* Menu Overlay */}
                   {activeMenuPage === idx && (
                     <div 
@@ -146,7 +150,8 @@ const LeftSidebar = ({
                   )}
                 </div>
              </div>
-             {/*PageNumber/Name*/}
+             
+             {/* Page Number / Name */}
              <div className="text-center mt-1 px-1">
                 {editingPageId === page.id ? (
                    <input 

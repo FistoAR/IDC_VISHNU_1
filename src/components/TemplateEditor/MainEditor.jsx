@@ -1,6 +1,8 @@
 // MainEditor.jsx - Updated Prop Passing for Double Page & Preview
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import JSZip from 'jszip';
+import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
 import html2canvas from 'html2canvas';
 import Navbar from '../Navbar';
@@ -11,6 +13,7 @@ import TemplateModal from './TemplateModal';
 import HTMLTemplateEditor from './HTMLTemplateEditor';
 import FlipbookPreview from './FlipbookPreview';
 import RightSidebar from './RightSidebar';
+import PopupPreview from './PopupPreview';
 import AlertModal from '../AlertModal';
 import useZoom from '../../hooks/useZoom';
 import useDeviceDetection from '../../hooks/useDeviceDetection';
@@ -40,7 +43,7 @@ const MainEditor = () => {
   const [showExportModal, setShowExportModal] = useState(false);
 
   // Export Logic
-  const handleDownloadPages = async (pagesToExport) => {
+  const handleDownloadPages = async (pagesToExport, format = 'png') => {
       try {
         const PAGE_WIDTH = 595;
         const PAGE_HEIGHT = 842;
@@ -49,88 +52,120 @@ const MainEditor = () => {
         const sanitizeName = (name) => name.replace(/[^a-z0-9 _-]/gi, '_').replace(/\s+/g, '_');
         const bookNameClean = sanitizeName(pageName) || 'Flipbook';
 
-        if (pagesToExport.length === 1) {
-          const pageNum = pagesToExport[0];
-          const page = pages.find((p, i) => (i + 1) === pageNum);
-          const pageNameClean = sanitizeName(page?.name || `Page_${pageNum}`);
-          
-          // Single export filename: BookName_PageName.png
-          const filename = `${bookNameClean}_${pageNameClean}.png`;
-
-          const hiddenFrame = document.createElement('iframe');
-          hiddenFrame.style.width = `${PAGE_WIDTH}px`;
-          hiddenFrame.style.height = `${PAGE_HEIGHT}px`;
-          hiddenFrame.style.position = 'fixed';
-          hiddenFrame.style.top = '-10000px';
-          hiddenFrame.style.border = 'none';
-          document.body.appendChild(hiddenFrame);
-          
-          const pageHTML = page?.html || '';
-          const doc = hiddenFrame.contentDocument;
-          doc.open();
-          doc.write(pageHTML);
-          doc.close();
-          
-          await new Promise(resolve => setTimeout(resolve, 500));
-          
-          const canvas = await html2canvas(doc.body, {
-            scale: 2,
-            useCORS: true,
-            logging: false,
-            width: PAGE_WIDTH,
-            height: PAGE_HEIGHT,
-            windowWidth: PAGE_WIDTH,
-            windowHeight: PAGE_HEIGHT
-          });
-          
-          document.body.removeChild(hiddenFrame);
-          
-          canvas.toBlob((blob) => {
-            saveAs(blob, filename);
-          });
-          
-        } else {
-          const zip = new JSZip();
-          
-          for (const pageNum of pagesToExport) {
-             const page = pages.find((p, i) => (i + 1) === pageNum);
-             const pageHTML = page?.html || '';
-             // Zip entry filename: PageName.png (no book name prefix)
-             const pageNameClean = sanitizeName(page?.name || `Page_${pageNum}`);
-             
+        // Helper to render page to canvas
+        const renderPageToCanvas = async (html, scale = 4) => {
              const hiddenFrame = document.createElement('iframe');
              hiddenFrame.style.width = `${PAGE_WIDTH}px`;
              hiddenFrame.style.height = `${PAGE_HEIGHT}px`;
              hiddenFrame.style.position = 'fixed';
-             hiddenFrame.style.top = '-10000px';
+             hiddenFrame.style.top = '0';
+             hiddenFrame.style.left = '0';
+             hiddenFrame.style.zIndex = '-9999';
              hiddenFrame.style.border = 'none';
              document.body.appendChild(hiddenFrame);
              
              const doc = hiddenFrame.contentDocument;
              doc.open();
-             doc.write(pageHTML);
+             doc.write(html);
+             
+             // Inject styles to ensure full page capture and background printing
+             const style = doc.createElement('style');
+             style.innerHTML = `
+                html, body {
+                    width: 595px !important;
+                    height: 842px !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    overflow: hidden !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                    background: white !important;
+                }
+                * {
+                   -webkit-print-color-adjust: exact !important;
+                   print-color-adjust: exact !important;
+                }
+             `;
+             if (doc.head) doc.head.appendChild(style);
+             else doc.body.appendChild(style);
+
              doc.close();
              
-             await new Promise(resolve => setTimeout(resolve, 200));
+             // Wait for images/content to load (Extended delay for reliability)
+             await new Promise(resolve => setTimeout(resolve, 1500));
              
-             const canvas = await html2canvas(doc.body, {
-                scale: 2,
+             const canvas = await html2canvas(doc.documentElement, {
+                scale: scale,
                 useCORS: true,
+                allowTaint: true,
                 logging: false,
                 width: PAGE_WIDTH,
                 height: PAGE_HEIGHT,
-                windowWidth: PAGE_WIDTH,
-                windowHeight: PAGE_HEIGHT
+                x: 0,
+                y: 0,
+                scrollX: 0,
+                scrollY: 0,
+                backgroundColor: '#ffffff'
              });
              
              document.body.removeChild(hiddenFrame);
+             return canvas;
+        };
+
+        if (format === 'pdf') {
+             // Generate Single Merged PDF
+             // Using A4 size in mm (210 x 297) approx matches 595x842 pts
+             const pdf = new jsPDF('p', 'pt', [PAGE_WIDTH, PAGE_HEIGHT]);
              
-             const blob = await new Promise(resolve => canvas.toBlob(resolve));
-             zip.file(`${pageNameClean}.png`, blob);
-          }
-          
-          const content = await zip.generateAsync({ type: 'blob' });
-          saveAs(content, `${bookNameClean}.zip`);
+             for (let i = 0; i < pagesToExport.length; i++) {
+                 const pageNum = pagesToExport[i];
+                 const page = pages.find((p, idx) => (idx + 1) === pageNum);
+                 const pageHTML = page?.html || '';
+                 
+                 const canvas = await renderPageToCanvas(pageHTML, 4);
+                 const imgData = canvas.toDataURL('image/jpeg', 0.95); // High quality JPEG for PDF
+                 
+                 if (i > 0) pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+                 pdf.addImage(imgData, 'JPEG', 0, 0, PAGE_WIDTH, PAGE_HEIGHT);
+             }
+             
+             pdf.save(`${bookNameClean}.pdf`);
+             
+        } else {
+            // JPG or PNG Export
+            const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+            const ext = format === 'jpg' ? 'jpg' : 'png';
+
+            if (pagesToExport.length === 1) {
+              // Single Image Download
+              const pageNum = pagesToExport[0];
+              const page = pages.find((p, i) => (i + 1) === pageNum);
+              const pageNameClean = sanitizeName(page?.name || `Page_${pageNum}`);
+              
+              const canvas = await renderPageToCanvas(page?.html || '', 4);
+              
+              canvas.toBlob((blob) => {
+                saveAs(blob, `${bookNameClean}_${pageNameClean}.${ext}`);
+              }, mimeType);
+              
+            } else {
+              // Multiple Images -> ZIP
+              const zip = new JSZip();
+              
+              for (const pageNum of pagesToExport) {
+                 const page = pages.find((p, i) => (i + 1) === pageNum);
+                 const pageNameClean = sanitizeName(page?.name || `Page_${pageNum}`);
+                 
+                 const canvas = await renderPageToCanvas(page?.html || '', 4);
+
+                 const blob = await new Promise(resolve => canvas.toBlob(resolve, mimeType));
+                 
+                 zip.file(`${pageNameClean}.${ext}`, blob);
+              }
+              
+              const content = await zip.generateAsync({ type: 'blob' });
+              saveAs(content, `${bookNameClean}.zip`);
+            }
         }
       } catch (err) {
         console.error("Export failed:", err);
@@ -139,13 +174,27 @@ const MainEditor = () => {
     };
   
   // Template state
+  // Template state
+  const location = useLocation();
+  const initialData = location.state || {};
+
   const [templateHTML, setTemplateHTML] = useState('');
-  const [pages, setPages] = useState([{ 
-    id: 1, 
-    name: 'Page 1', 
-    html: '',
-    thumbnail: null 
-  }]);
+  const [pages, setPages] = useState(() => {
+     if (initialData.pageCount) {
+         return Array.from({ length: initialData.pageCount }, (_, i) => ({
+             id: i + 1,
+             name: `Page ${i + 1}`,
+             html: '',
+             thumbnail: null
+         }));
+     }
+     return [{ 
+       id: 1, 
+       name: 'Page 1', 
+       html: '',
+       thumbnail: null 
+     }];
+  });
   const [currentPage, setCurrentPage] = useState(0);
   
   // Editor state
@@ -173,6 +222,30 @@ const MainEditor = () => {
     cancelText: 'Cancel',
     onConfirm: null
   });
+
+  const [popupPreview, setPopupPreview] = useState({
+    isOpen: false,
+    content: '',
+    elementType: 'text',
+    elementSource: '',
+    styles: {}
+  });
+
+  const [closePanelsSignal, setClosePanelsSignal] = useState(0);
+
+  // Memoize flipbook pages at top level to follow Rules of Hooks
+  const flipbookPages = React.useMemo(() => pages.map(p => p.html), [pages]);
+
+  const handlePopupPreviewUpdate = useCallback((data) => {
+    setPopupPreview(prev => ({
+      ...prev,
+      isOpen: data.isOpen,
+      content: data.content !== undefined ? data.content : prev.content,
+      elementType: data.elementType || prev.elementType,
+      elementSource: data.elementSource || prev.elementSource,
+      styles: data.styles ? { ...prev.styles, ...data.styles } : prev.styles
+    }));
+  }, []);
 
   const showAlert = useCallback((type, title, message, options = {}) => {
     setAlertState({
@@ -301,7 +374,8 @@ const MainEditor = () => {
         updated[currentPage] = { ...updated[currentPage], html: html };
         return updated;
       });
-      setTimeout(() => generateThumbnail(html, pages[currentPage].id), 500);
+      // Immediate generation for loaded template (50ms wait for state, 100ms debounce)
+      setTimeout(() => generateThumbnail(html, pages[currentPage].id, 100), 50);
     } catch (error) {
       console.error('Failed to load:', error);
       showAlert('error', 'Load Failed', 'Failed to load the selected template. Please try again.');
@@ -402,7 +476,8 @@ const MainEditor = () => {
       updated[currentPage] = { ...updated[currentPage], html: newHTML };
       return updated;
     });
-    generateThumbnail(newHTML, pages[currentPage].id, 2000);
+    // Reduced debounce for faster typing feedback (800ms)
+    generateThumbnail(newHTML, pages[currentPage].id, 800);
   }, [currentPage, generateThumbnail, pages]);
 
   const handleElementSelect = useCallback((element, type) => {
@@ -410,12 +485,58 @@ const MainEditor = () => {
     setSelectedElementType(type);
   }, []);
 
-  const handleElementUpdate = useCallback(() => {
-    if (selectedElement) {
-      const iframe = document.querySelector('iframe');
-      if (iframe) {
+  // Debounce ref for element updates
+  const elementUpdateDebounceRef = useRef(null);
+
+  const handleElementUpdate = useCallback((options = {}) => {
+    if (selectedElement || options?.newElement) {
+      const iframe = document.querySelector('iframe[title="Template Editor"]');
+      if (iframe && iframe.contentDocument && iframe.contentDocument.documentElement) {
         const doc = iframe.contentDocument;
-        handleTemplateChange(doc.documentElement.outerHTML);
+        const html = doc.documentElement.outerHTML;
+        
+        // Prevent re-render of iframe by syncing internal ref first
+        if (!options?.shouldRefresh && htmlEditorRef.current) {
+            htmlEditorRef.current.setInternalHTML(html);
+        }
+
+        // If it's a structural refresh (like icon replacement), update immediately
+        if (options?.shouldRefresh) {
+            if (elementUpdateDebounceRef.current) clearTimeout(elementUpdateDebounceRef.current);
+            handleTemplateChange(html);
+            
+            // If a new element was created (icon replacement), re-select it after refresh
+            if (options?.newElement) {
+                // Wait for iframe to refresh and event listeners to be reattached
+                setTimeout(() => {
+                    const iframe = document.querySelector('iframe[title="Template Editor"]');
+                    if (iframe && iframe.contentDocument) {
+                        const doc = iframe.contentDocument;
+                        // Find the new element in the refreshed iframe
+                        // Use data-editable and position/attributes to locate it
+                        const svgs = doc.querySelectorAll('svg[data-editable="true"]');
+                        // Find matching SVG by comparing key attributes
+                        const newElementInIframe = Array.from(svgs).find(svg => {
+                            // Match by similar attributes (width, height, position)
+                            return svg.getAttribute('width') === options.newElement.getAttribute('width') &&
+                                   svg.getAttribute('height') === options.newElement.getAttribute('height');
+                        }) || svgs[0]; // Fallback to first SVG if no exact match
+                        
+                        if (newElementInIframe) {
+                            // Trigger selection
+                            newElementInIframe.click();
+                        }
+                    }
+                }, 150); // Wait for setupEditableElements to complete
+            }
+            return;
+        }
+        
+        // Otherwise, debounce the heavy state update (Sidebar re-render)
+        if (elementUpdateDebounceRef.current) clearTimeout(elementUpdateDebounceRef.current);
+        elementUpdateDebounceRef.current = setTimeout(() => {
+            handleTemplateChange(html);
+        }, 500);
       }
     }
   }, [selectedElement, handleTemplateChange]);
@@ -500,7 +621,14 @@ const MainEditor = () => {
                 }
             }}
           >
-            <div style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px)`, transition: isPanning ? 'none' : 'transform 0.2s ease-out' }}>
+            <div 
+              style={{
+                transform: `translate(${panOffset.x}px, ${panOffset.y}px)`,
+                transition: isPanning ? 'none' : 'transform 0.2s ease-out',
+                filter: popupPreview.isOpen ? 'blur(8px)' : 'none'
+              }}
+              className="transition-all duration-300"
+            >
                 <HTMLTemplateEditor
                     ref={htmlEditorRef}
                     templateHTML={templateHTML}
@@ -512,6 +640,8 @@ const MainEditor = () => {
                     onZoomChange={setZoomLevel}
                     onPanStart={handleIframePanStart}
                     onElementSelect={handleElementSelect}
+                    onGlobalClick={() => setClosePanelsSignal(prev => prev + 1)}
+                    onOpenTemplateModal={() => setShowTemplateModal(true)}
                 />
                 
                 {/* Overlay to capture mouse events during panning */}
@@ -529,6 +659,16 @@ const MainEditor = () => {
                     Page {currentPage + 1} / {pages.length}
                 </div>
             )}
+
+            {popupPreview.isOpen && (
+              <PopupPreview
+                content={popupPreview.content}
+                styles={popupPreview.styles}
+                elementType={popupPreview.elementType}
+                elementSource={popupPreview.elementSource}
+                onClose={() => setPopupPreview({ ...popupPreview, isOpen: false })}
+              />
+            )}
           </div>
         </div>
       </main>
@@ -540,6 +680,8 @@ const MainEditor = () => {
         isDoublePage={isDoublePage}
         setIsDoublePage={setIsDoublePage}
         openPreview={openPreview}
+        onPopupPreviewUpdate={handlePopupPreviewUpdate}
+        closePanelsSignal={closePanelsSignal}
       />
 
       {showTemplateModal && (
@@ -548,7 +690,7 @@ const MainEditor = () => {
 
       {showPreview && (
         <FlipbookPreview 
-          pages={pages.map(p => p.html)} 
+          pages={flipbookPages} 
           pageName={pageName} 
           onClose={closePreview} 
           isMobile={deviceInfo.isMobile}

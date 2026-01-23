@@ -5,23 +5,41 @@ import {
   ArrowRightLeft,
   ChevronUp,
   ChevronDown,
-  Edit,
+  Edit3,
 } from "lucide-react";
 import GalleryGif from "./GalleryGif";
+import InteractionPanel from './InteractionPanel';
 
 const galleryPreviewImages = [
-  "https://images.unsplash.com/photo-1541447271487-09612b3f49f7",
-  "https://images.unsplash.com/photo-1517420704212-6804d8c97371",
-  "https://images.unsplash.com/photo-1582005131393-545703056094"
+  "https://convertico.com/samples/download.php?format=gif&file=mesmerizing-motion-gif.gif",
+  "https://www.easygifanimator.net/images/samples/video-to-gif-sample.gif",
+  "https://psdgang.com//wp-content/uploads/2017/04/009.gif"
 ];
 
-const GifEditor = ({ selectedElement, onUpdate }) => {
+const GifEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
   const fileInputRef = useRef(null);
   const [open, setOpen] = useState(true);
   const [openGallery, setOpenGallery] = useState(false);
+  const [opacity, setOpacity] = useState(100);
 
+  // Sync opacity when element changes
+  useEffect(() => {
+    if (selectedElement) {
+      const currentOpacity = selectedElement.style.opacity;
+      setOpacity(currentOpacity ? Math.round(Number(currentOpacity) * 100) : 100);
+    }
+  }, [selectedElement]);
 
- 
+  const handleOpacityChange = (e) => {
+    const value = Number(e.target.value);
+    setOpacity(value);
+
+    if (selectedElement) {
+      selectedElement.style.opacity = value / 100;
+      onUpdate?.();
+    }
+  };
+
   // 🔒 Always mark selected image as GIF
   useEffect(() => {
     if (
@@ -66,33 +84,30 @@ const GifEditor = ({ selectedElement, onUpdate }) => {
 
   return (
     <>
-      <div className="bg-white border text-left border-gray-200 rounded-lg shadow-sm overflow-hidden mb-4">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden relative font-sans mb-3">
         {/* HEADER */}
         <button
           onClick={() => setOpen(!open)}
-          className="w-full flex justify-between items-center px-4 py-3 font-medium bg-white hover:bg-gray-50 transition-colors"
+          className="w-full flex justify-between items-center p-4 border-sm border-gray-50"
         >
-          <div className="flex items-center gap-3">
-            <div className="border border-gray-500 rounded p-0.5">
-              <Edit size={14} className="text-gray-600" />
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 border border-gray-200 rounded-lg">
+              <Edit3 size={16} className="text-gray-600" />
             </div>
-            <span className="text-sm font-semibold text-gray-700">GIF</span>
+            <span className="text-sm font-bold text-gray-700">GIF</span>
           </div>
-          {open ? <ChevronUp size={16} className="text-gray-500" /> : <ChevronDown size={16} className="text-gray-500" />}
+          <ChevronUp size={18} className={`text-gray-400 transition-transform duration-200 ${open ? '' : 'rotate-180'}`} />
         </button>
 
         {/* CONTENT */}
         {open && (
-          <div className="p-4 pt-1 space-y-6 animate-fadeIn">
+          <div className="pr-5 pl-5 mb-5 space-y-6">
 
             {/* 1. Upload Section */}
             <div>
-              <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-sm font-bold text-gray-800 whitespace-nowrap">
-                  Upload your GIF
-                </h3>
-                <div className="h-px bg-gray-200 w-full mt-1"></div>
-              </div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">
+                Upload your GIF
+              </h3>
 
               {/* FILE INPUT */}
               <input
@@ -103,71 +118,100 @@ const GifEditor = ({ selectedElement, onUpdate }) => {
                 className="hidden"
               />
 
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-3">
                 {/* Current Image */}
                 <div className="flex flex-col items-center gap-2">
-                  <div className="w-20 h-20 bg-gray-50 border border-dashed border-gray-400 rounded-lg p-1 flex items-center justify-center overflow-hidden">
+                  <div className="w-[72px] h-[72px] bg-gray-50 border-2 border-dashed border-gray-300 rounded-xl p-1 flex items-center justify-center overflow-hidden">
                     <img
                       src={selectedElement.src}
                       alt="Current"
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <span className="text-[10px] text-gray-500 font-medium">Bulb .GIF</span>
+                  <span className="text-[10px] text-gray-500 font-medium">Bulb GIF</span>
                 </div>
 
                 {/* Swap Icon */}
                 <div className="flex-shrink-0 text-gray-400">
-                  <ArrowRightLeft size={18} />
+                  <ArrowRightLeft size={20} />
                 </div>
 
                 {/* Upload Area */}
-                <div className="flex flex-col items-center gap-1">
+                <div className="flex-1">
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="w-30 h-20 border border-dashed border-gray-400 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition-colors group"
+                    className="h-[72px] border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 hover:border-indigo-400 transition-colors"
                   >
-                    <Upload size={18} className="text-gray-400 mb-1 group-hover:text-indigo-600 transition-colors" />
-                    <p className="text-[10px] text-gray-500">
+                    <Upload size={20} className="text-indigo-600 mb-1" />
+                    <p className="text-[11px] text-gray-500 text-center px-2">
                       Drag & Drop or <span className="text-indigo-600 font-bold">Upload</span>
                     </p>
                   </div>
-                  <span className="text-[9px] text-gray-400 font-medium">Supported File Format : GIF</span>
+                  <p className="text-[9px] text-gray-400 text-center mt-1.5">Supported File Format : GIF</p>
                 </div>
               </div>
             </div>
 
             {/* 2. Gallery Section */}
             <div
-              className="relative h-36 rounded-xl overflow-hidden cursor-pointer group"
+              className="relative h-40 rounded-xl overflow-hidden cursor-pointer group"
               onClick={() => setOpenGallery(true)}
             >
               {/* Background with thumbnails mockup */}
-              <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 p-4">
-                <div className="flex items-end justify-center gap-3 h-full pb-8 opacity-60 grayscale group-hover:grayscale-0 transition-all duration-300 transform group-hover:scale-105">
+              <div className="absolute inset-0 bg-gradient-to-br from-gray-300 via-gray-400 to-gray-500 p-4">
+                <div className="flex items-end justify-center gap-3 h-full pb-10 opacity-70 grayscale group-hover:grayscale-0 transition-all duration-300 transform group-hover:scale-105">
                   {galleryPreviewImages.map((src, i) => (
-                    <div key={i} className={`rounded shadow-sm overflow-hidden bg-white border border-gray-200 ${i === 1 ? 'w-20 h-20 -mb-2 z-10' : 'w-16 h-16'}`}>
+                    <div key={i} className={`rounded-lg shadow-lg overflow-hidden bg-white border-2 border-gray-300 ${i === 1 ? 'w-24 h-24 -mb-2 z-10' : 'w-20 h-20'}`}>
                       <img src={src} alt="Gallery" className="w-full h-full object-cover" />
+                      <div className="absolute bottom-1 right-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-bold">GIF</div>
                     </div>
                   ))}
                 </div>
               </div>
 
               {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent flex items-end justify-center pb-4">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent flex items-end justify-center pb-5">
                 <div className="flex items-center gap-2 text-white font-bold text-sm tracking-wide">
-                  <ImageIcon size={18} />
+                  <ImageIcon size={20} />
                   GIF Gallery
                 </div>
               </div>
             </div>
 
-     
-            
+            {/* 3. Opacity Section */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-800 mb-3">Opacity</h3>
+
+              <div className="flex items-center gap-3">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={opacity}
+                  onChange={handleOpacityChange}
+                  className="flex-1 appearance-none cursor-pointer"
+                  style={{
+                    height: '4px',
+                    borderRadius: '2px',
+                    background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${opacity}%, #e5e7eb ${opacity}%, #e5e7eb 100%)`
+                  }}
+                />
+                <span className="text-sm font-bold text-gray-800 w-12 text-right">
+                  {opacity} %
+                </span>
+              </div>
+            </div>
 
           </div>
         )}
       </div>
+
+      {/* INTERACTION PANEL */}
+      <InteractionPanel
+        selectedElement={selectedElement}
+        onUpdate={onUpdate}
+        onPopupPreviewUpdate={onPopupPreviewUpdate}
+      />
 
       {/* GALLERY MODAL */}
       {openGallery && (

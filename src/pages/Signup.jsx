@@ -52,13 +52,26 @@ export default function Signup() {
     }
     try {
       // Backend expects emailId, frontend has email
-      const res = await axios.post('http://localhost:5000/api/auth/signup', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      const res = await axios.post(`${backendUrl}/api/auth/signup`, {
         emailId: formData.email,
         password: formData.password
       });
       console.log('Signup success:', res.data);
+      
+      // Store user data in localStorage
+      if (res.data.user) {
+        localStorage.setItem('user', JSON.stringify({
+          emailId: res.data.user.emailId,
+          userFolder: res.data.user.userFolder,
+          createdAt: res.data.user.createdAt,
+          isLoggedIn: true
+        }));
+        console.log('User data stored in localStorage');
+      }
+      
       toast.success('Signup successful!');
-      navigate('/template_editor');
+      navigate('/home');
     } catch (err) {
       console.error('Signup error:', err.response?.data?.message || err.message);
       toast.error(err.response?.data?.message || 'Signup failed');

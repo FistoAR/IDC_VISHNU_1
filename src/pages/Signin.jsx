@@ -39,13 +39,23 @@ export default function Signin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', {
+      const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      const res = await axios.post(`${backendUrl}/api/auth/login`, {
         emailId: formData.emailId,
         password: formData.password
       });
       console.log('Login success:', res.data);
+      
+      // Store user data in localStorage
+      if (res.data.user) {
+        localStorage.setItem('user', JSON.stringify({
+          ...res.data.user,
+          isLoggedIn: true
+        }));
+      }
+
       toast.success('Login successful!');
-      navigate('/template_editor');
+      navigate('/home');
     } catch (err) {
       console.error('Login error:', err.response?.data?.message || err.message);
       toast.error(err.response?.data?.message || 'Login failed');

@@ -10,10 +10,8 @@ import TemplateHTML4 from "../../assets/Templates/template_4.html?url";
 import TemplateHTML5 from "../../assets/Templates/template_5.html?url"; 
 import TemplateHTML6 from "../../assets/Templates/template_6.html?url";   
 import TemplateHTML7 from "../../assets/Templates/template_7.html?url"; 
-import TemplateHTML8 from "../../assets/Templates/template_8.html?url";
-import TemplateHTML9 from "../../assets/Templates/template_9.html?url";
- 
-
+import TemplateHTML8 from "../../assets/Templates/template_8.html?url"; 
+import TemplateHTML9 from "../../assets/Templates/template_9.html?url"; 
 
 const TemplateModal = ({ showTemplateModal, setShowTemplateModal, clearCanvas, loadHTMLTemplate }) => {
   const [activeTab, setActiveTab] = useState('All');
@@ -86,7 +84,7 @@ const TemplateModal = ({ showTemplateModal, setShowTemplateModal, clearCanvas, l
       description: 'Professional A4 business report template'
     },
     {
-       id: 9,
+      id: 9,
       name: 'Template 9',
       category: 'Business',
       src: TemplateHTML9,

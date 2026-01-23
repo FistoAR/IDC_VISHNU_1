@@ -1,6 +1,5 @@
 // VideoEditor.jsx - Context-sensitive video editing panel
-import { useState, useRef, useEffect, useCallback } from "react";
-import ReactPlayer from "react-player";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 
 import {
   Video as VideoIcon,
@@ -15,22 +14,11 @@ import {
   Replace,
   ChevronUp,
   ChevronDown,
+  Edit3,
 } from "lucide-react";
-import {
-  MediaController,
-  MediaControlBar,
-  MediaTimeRange,
-  MediaTimeDisplay,
-  MediaVolumeRange,
-  MediaPlaybackRateButton,
-  MediaPlayButton,
-  MediaSeekBackwardButton,
-  MediaSeekForwardButton,
-  MediaMuteButton,
-  MediaFullscreenButton,
-} from "media-chrome/react";
-
 import VideoGalleryModal from "./VideoGalleryModal";
+import InteractionPanel from './InteractionPanel';
+
 
 const debounce = (fn, delay = 150) => {
   let t;
@@ -73,105 +61,76 @@ const autoPickThumbnailFromVideo = (selectedElement, onUpdate) => {
         video.currentTime = Math.min(1, video.duration / 10);
         capture();
       },
-      { once: true },
+      { once: true }
     );
   }
 };
 
-const VideoEditor = ({ selectedElement, onUpdate }) => {
+const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
   const fileInputRef = useRef(null);
   const [openGallery, setOpenGallery] = useState(false);
   const [tab, setTab] = useState("gallery");
-  // Set default to true so it is open by default
-  const [open, setOpen] = useState(true);
   const coverInputRef = useRef(null);
   const [previewSrc, setPreviewSrc] = useState(null);
   const [posterSrc, setPosterSrc] = useState(null);
-  const [videoType, setVideoType] = useState("fit"); // Add this new state
+  const [videoType, setVideoType] = useState("fit");
+  const [autoplay, setAutoplay] = useState(false);
+  const [loop, setLoop] = useState(false);
+  const [isMainPanelOpen, setIsMainPanelOpen] = useState(true);
 
-  const debouncedUpdate = useRef(
-    debounce((...args) => onUpdate?.(...args), 150),
-  ).current;
 
-  // Sync previewSrc with selectedElement
-  useEffect(() => {
-    if (!selectedElement) return;
+  const toggleMainPanel = () => {
+    setIsMainPanelOpen(prev => !prev);
+  };
 
-    if (selectedElement.tagName === "VIDEO") {
-      setPreviewSrc(
-        selectedElement.currentSrc ||
-          selectedElement.src ||
-          selectedElement.querySelector("source")?.src ||
-          null,
-      );
-    } else if (selectedElement.tagName === "IFRAME") {
-      setPreviewSrc(selectedElement.src || null);
-    } else {
-      setPreviewSrc(null);
-    }
-  }, [selectedElement]);
 
-  // Keep a ref to access current element inside effects without adding it to dependencies
-  const selectedElementRef = useRef(selectedElement);
-  selectedElementRef.current = selectedElement;
+  // Memoize the debounced update function to prevent recreation
+  const debouncedUpdate = useMemo(
+    () => debounce((...args) => onUpdate?.(...args), 150),
+    [onUpdate]
+  );
 
-  if (!selectedElement) {
-    return (
-      <div className="p-4 text-center text-gray-400 text-sm">
-        <VideoIcon className="mx-auto mb-2" size={32} />
-        <p>Click on a video to edit</p>
-      </div>
-    );
-  }
-
-  useEffect(() => {
-    if (selectedElement?.tagName === "VIDEO") {
-      setPosterSrc(selectedElement.poster || null);
-    }
-  }, [selectedElement]);
-
-  useEffect(() => {
-    if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
-
-    // controls must be enabled for hover to work
-    selectedElement.controls = true;
-
-    // always hide by default
-    selectedElement.classList.add("hide-controls");
-
-    debouncedUpdate();
-  }, [selectedElement]);
-
-  const galleryPreviews = [
+  // Memoize static gallery previews - this prevents re-creation on every render
+  const galleryPreviews = useMemo(() => [
     "https://www.abcconsultants.in/wp-content/uploads/2023/07/Industrial.jpg",
     "https://www.shutterstock.com/image-photo/engineers-discussing-project-outdoors-industrial-260nw-2624485537.jpg",
     "https://thumbs.dreamstime.com/b/professional-people-workers-working-modern-technology-robotic-industry-automation-manufacturing-engineer-robot-arm-assembly-413769130.jpg",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjnXGV5m5a_3qpSA5aZOiTI2cxP12fiECP7A&s",
     "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR2X_82Pzp2MyE0HXq_4QFvxUkjSlLByIkpdg&s",
     "https://7409217.fs1.hubspotusercontent-na1.net/hubfs/7409217/Imported_Blog_Media/10556694-scaled.jpg",
-  ];
+  ], []);
 
-  const handleVideoTypeChange = useCallback(
-    (type) => {
-      if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
+  // Consolidate all element sync into one effect to prevent multiple re-renders
+  useEffect(() => {
+    if (!selectedElement) {
+      setPreviewSrc(null);
+      setPosterSrc(null);
+      return;
+    }
 
-      setVideoType(type);
+    // Update preview source
+    if (selectedElement.tagName === "VIDEO") {
+      const src = selectedElement.currentSrc ||
+        selectedElement.src ||
+        selectedElement.querySelector("source")?.src ||
+        null;
+      setPreviewSrc(src);
+      setPosterSrc(selectedElement.poster || null);
 
-      // Apply object-fit styles
-      const objectFitMap = {
-        fit: "contain",
-        fill: "cover",
-        crop: "cover",
-      };
+      // controls must be enabled for hover to work
+      selectedElement.controls = true;
+      // always hide by default
+      selectedElement.classList.add("hide-controls");
+    } else if (selectedElement.tagName === "IFRAME") {
+      setPreviewSrc(selectedElement.src || null);
+      setPosterSrc(null);
+    } else {
+      setPreviewSrc(null);
+      setPosterSrc(null);
+    }
+  }, [selectedElement]);
 
-      selectedElement.style.objectFit = objectFitMap[type];
-      selectedElement.style.objectPosition = "center";
-
-      debouncedUpdate();
-    },
-    [selectedElement, debouncedUpdate],
-  );
-
+  // Memoize replaceTemplateWithUrl to prevent re-creation
   const replaceTemplateWithUrl = useCallback(
     (url) => {
       if (!selectedElement || !url) return;
@@ -235,42 +194,68 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     [selectedElement, debouncedUpdate],
   );
 
-  const toggleAttribute = useCallback(
-    (attr) => {
-      if (!selectedElement) return;
-      const isEnabled = selectedElement.hasAttribute(attr);
-      const newState = !isEnabled;
+  // Memoize toggleAttribute to prevent re-creation
+  const toggleAutoplay = useCallback(() => {
+    setAutoplay(prev => {
+      const next = !prev;
 
-      if (newState) {
-        selectedElement.setAttribute(attr, "");
+      debouncedUpdate({
+        autoplay: next,
+        muted: next, // 🔥 important
+      });
+
+      if (!next) setLoop(false);
+      return next;
+    });
+  }, [debouncedUpdate]);
+
+
+  const toggleLoop = useCallback(() => {
+    if (!autoplay) return;
+    setLoop((prev) => !prev);
+  }, [autoplay]);
+
+  // Sync autoplay and loop attributes on the video element
+  useEffect(() => {
+    if (selectedElement?.tagName === "VIDEO") {
+      selectedElement.autoplay = autoplay;
+      selectedElement.loop = loop;
+
+      if (autoplay) {
+        selectedElement.muted = true; // 🔥 REQUIRED
+        selectedElement.setAttribute("muted", "");
+        selectedElement.play().catch(() => { });
       } else {
-        selectedElement.removeAttribute(attr);
+        selectedElement.pause();
       }
 
-      switch (attr) {
-        case "autoplay":
-          selectedElement.autoplay = newState;
-          break;
-        case "loop":
-          selectedElement.loop = newState;
-          break;
-        case "muted":
-          selectedElement.muted = newState;
-          break;
-        case "controls":
-          selectedElement.controls = newState;
-          break;
-        default:
-          break;
-      }
-      debouncedUpdate();
-    },
-    [selectedElement, debouncedUpdate],
-  );
+      // 🔥 persist attributes for preview page
+      if (autoplay) selectedElement.setAttribute("autoplay", "");
+      else selectedElement.removeAttribute("autoplay");
 
-  const hasAttribute = (attr) => selectedElement?.hasAttribute(attr);
+      if (loop) selectedElement.setAttribute("loop", "");
+      else selectedElement.removeAttribute("loop");
+    }
+  }, [autoplay, loop, selectedElement]);
 
-  const handleVideoUpload = (e) => {
+
+  // Handle video type change (fit, fill, crop)
+  const handleVideoTypeChange = useCallback((type) => {
+    setVideoType(type);
+    if (selectedElement?.tagName === "VIDEO") {
+      const fitMap = {
+        fit: "contain",
+        fill: "fill",
+        crop: "cover",
+      };
+      selectedElement.style.objectFit = fitMap[type] || "contain";
+    }
+  }, [selectedElement]);
+  // Memoize hasAttribute to prevent re-creation
+  const hasAttribute = useCallback((attr) => selectedElement?.hasAttribute(attr), [selectedElement]);
+
+  // Memoize handleVideoUpload to prevent re-creation
+  const handleVideoUpload = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedElement) return;
 
@@ -289,9 +274,10 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
 
       debouncedUpdate();
     }
-  };
+  }, [selectedElement, debouncedUpdate]);
 
-  const handleCoverUpload = (e) => {
+  // Memoize handleCoverUpload to prevent re-creation
+  const handleCoverUpload = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedElement) return;
 
@@ -318,325 +304,339 @@ const VideoEditor = ({ selectedElement, onUpdate }) => {
     };
 
     reader.readAsDataURL(file);
-  };
+  }, [selectedElement, debouncedUpdate]);
 
-  const autoPickThumbnailFromVideo = (videoEl, onUpdate, setPosterSrc) => {
-    if (!videoEl || videoEl.tagName !== "VIDEO") return;
+  // Memoize autoPickThumbnailFromVideo callback
+  const handleAutoPickThumbnail = useCallback(() => {
+    if (!selectedElement || selectedElement.tagName !== "VIDEO") return;
 
     // ensure metadata is loaded
-    if (videoEl.readyState < 2) {
-      videoEl.onloadeddata = () =>
-        autoPickThumbnailFromVideo(videoEl, onUpdate, setPosterSrc);
+    if (selectedElement.readyState < 2) {
+      selectedElement.onloadeddata = () => handleAutoPickThumbnail();
       return;
     }
 
     const canvas = document.createElement("canvas");
-    canvas.width = videoEl.videoWidth;
-    canvas.height = videoEl.videoHeight;
+    canvas.width = selectedElement.videoWidth;
+    canvas.height = selectedElement.videoHeight;
 
     const ctx = canvas.getContext("2d");
-    ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    ctx.drawImage(selectedElement, 0, 0, canvas.width, canvas.height);
 
     const thumbnail = canvas.toDataURL("image/png");
 
     // 🔥 FIX poster on video
-    videoEl.poster = thumbnail;
+    selectedElement.poster = thumbnail;
 
     // 🔥 update UI preview box
     setPosterSrc(thumbnail);
 
     // 🔥 persist in editor/store
-    onUpdate({
+    debouncedUpdate({
       poster: thumbnail,
     });
-  };
+  }, [selectedElement, debouncedUpdate]);
+
+
+  // Early return if no element is selected
+  if (!selectedElement) {
+    return (
+      <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm p-4 text-center text-gray-400 text-sm">
+        <VideoIcon className="mx-auto mb-2" size={32} />
+        <p>Click on a video to edit</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {/* SECTION HEADER WITH TOGGLE */}
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full flex justify-between items-center px-3 py-2 font-medium bg-white border-b border-gray-100"
-      >
-        <div className="flex items-center gap-2">
-          <VideoIcon size={18} />
-          <span>Video</span>
-        </div>
-        {open ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-      </button>
 
-      {/* COLLAPSIBLE CONTENT */}
-      {open && (
-        <div className="space-y-4 p-3 animate-in fade-in duration-200">
+    <>
+
+      <div className="border border-gray-200 rounded-lg overflow-hidden  bg-white shadow-sm mb-4">
+        {/* SECTION HEADER WITH TOGGLE */}
+        <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 ">
           <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold text-gray-800">
-              Upload your Video
-            </h3>
-            <div className="flex-1 h-px bg-gray-200" />
+            <div className="p-1.5 border border-gray-200 rounded-lg">
+              <Edit3 size={16} className="text-gray-600" />
+            </div>
+            <span className="font-semibold text-gray-700 text-sm">
+              Video
+            </span>
           </div>
 
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/mp4"
-            onChange={handleVideoUpload}
-            className="hidden"
-          />
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/png,image/jpeg"
-            className="hidden"
-            onChange={handleCoverUpload}
-          />
+          <button
+            onClick={toggleMainPanel}
+            className="p-1 hover:bg-gray-50 rounded-full transition"
+          >
+            <ChevronUp
+              size={18}
+              className={`text-gray-400 transition-transform duration-200 ${isMainPanelOpen ? "" : "rotate-180"
+                }`}
+            />
+          </button>
+        </div>
 
-          {/* SELECT IMAGE TYPE DROPDOWN */}
-          <div className="flex items-center gap-3 mb-4">
-            <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
-              Select the Video type :
-            </label>
-            <select
-              value={videoType}
-              onChange={(e) => handleVideoTypeChange(e.target.value)}
-              className="flex-1 px-2 py-1 mt-3 mb-3 border border-gray-300 rounded-md text-sm focus:border-transparent bg-white cursor-pointer"
-            >
-              <option value="fit">Fit</option>
-              <option value="fill">Fill</option>
-              <option value="crop">Crop</option>
-            </select>
-          </div>
+        {/* COLLAPSIBLE CONTENT */}
+        {isMainPanelOpen && (
+          <div className="space-y-3 p-4 animate-in fade-in duration-200">
+            {/* Upload your Video Section */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-medium text-gray-900">
+                Upload your Video
+              </h3>
 
-          <div className="flex gap-4 items-center">
-            <div
-              className="w-18 h-18 border-2 border-dashed rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center shrink-0"
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              {previewSrc ? (
-                <div
-                  className="w-full h-full"
-                  onContextMenu={(e) => e.preventDefault()}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="video/mp4"
+                onChange={handleVideoUpload}
+                className="hidden"
+              />
+              <input
+                ref={coverInputRef}
+                type="file"
+                accept="image/png,image/jpeg"
+                className="hidden"
+                onChange={handleCoverUpload}
+              />
+
+              {/* SELECT IMAGE TYPE DROPDOWN */}
+              <div className="flex items-center gap-3 mb-4">
+                <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+                  Select the Video type :
+                </label>
+                <select
+                  value={videoType}
+                  onChange={(e) => handleVideoTypeChange(e.target.value)}
+                  className="flex-1 px-2 py-1 mt-3 mb-3 border border-gray-300 rounded-md text-sm focus:border-transparent bg-white cursor-pointer"
                 >
-                  <MediaController
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      aspectRatio: "16/9",
-                    }}
-                  >
-                    <div onContextMenu={(e) => e.preventDefault()}>
-                      <ReactPlayer
-                        slot="media"
-                        url={previewSrc}
-                        controls={false}
+                  <option value="fit">Fit</option>
+                  <option value="fill">Fill</option>
+                  <option value="crop">Crop</option>
+                </select>
+              </div>
+
+              {/* Upload Area */}
+              <div className="flex gap-3 items-center">
+                {/* Video Preview Thumbnail */}
+                <div className="relative w-20 h-16 border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center shrink-0">
+                  {previewSrc ? (
+                    <>
+                      <video
+                        src={previewSrc}
+                        className="w-full h-full object-cover"
                         muted
-                        width="100%"
-                        height="100%"
-                        config={{
-                          file: {
-                            attributes: {
-                              controlsList:
-                                "nodownload noplaybackrate noremoteplayback",
-                              disablePictureInPicture: true,
-                            },
-                          },
-                        }}
+                        preload="metadata"
                       />
-                    </div>
-                    <MediaControlBar>
-                      <MediaPlayButton />
-                      <MediaSeekBackwardButton seekOffset={10} />
-                      <MediaSeekForwardButton seekOffset={10} />
-                      <MediaTimeRange />
-                      <MediaTimeDisplay showDuration />
-                      <MediaMuteButton />
-                      <MediaVolumeRange />
-                      <MediaPlaybackRateButton />
-                      <MediaFullscreenButton />
-                    </MediaControlBar>
-                  </MediaController>
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <div className="w-8 h-8 bg-white/90 rounded-full flex items-center justify-center">
+                          <Play size={14} className="text-gray-800 ml-0.5" />
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-xs text-gray-400">No Video</div>
+                  )}
                 </div>
-              ) : (
-                <div className="text-xs text-gray-400">No Video</div>
-              )}
-            </div>
-            <div className="text-gray-400">
-              <Replace size={20} />
-            </div>
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              className="flex-1 w-30 h-18 border-2 border-dashed rounded-lg cursor-pointer flex flex-col items-center justify-center text-gray-500 hover:border-indigo-500 hover:text-indigo-600 transition"
-            >
-              <Upload size={20} />
-              <p className="text-sm text-center">
-                Drag & Drop or <span className="font-medium">Upload</span>
+
+                {/* Replace Icon */}
+                <div className="text-gray-300">
+                  <Replace size={18} />
+                </div>
+
+                {/* Upload Drop Zone */}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 h-16 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer flex flex-col items-center justify-center text-gray-400 hover:border-indigo-400 hover:text-indigo-500 transition bg-white"
+                >
+                  <Upload size={16} className="mb-0.5" />
+                  <p className="text-xs">
+                    Drag & <span className="text-indigo-600 font-medium">Upload</span>
+                  </p>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-right">
+                Supported File Format : MP4
               </p>
             </div>
-          </div>
 
-          <p className="text-xs text-gray-400 text-right">
-            Supported File Format: MP4
-          </p>
 
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400">OR</span>
-            <div className="flex-1 h-px bg-gray-200" />
-          </div>
 
-          <div className="flex items-center gap-2">
-            <label className="text-xs text-gray-600">URL :</label>
-            <input
-              type="text"
-              placeholder="http://"
-              className="flex-1 px-3 py-2 border  rounded-md text-sm focus:ring-2 focus:ring-indigo-500"
-              onBlur={(e) => replaceTemplateWithUrl(e.target.value)}
-            />
-          </div>
-          {/* GALLERY PREVIEW BOX */}
-          <div
-            onClick={() => setOpenGallery(true)}
-            className="relative w-full h-28 border rounded-md cursor-pointer overflow-hidden bg-gray-50 mt-4"
-          >
-            {/* Preview thumbnails */}
-            <div className="absolute inset-0 grid grid-cols-3 grid-rows-2">
-              {galleryPreviews.map((src, i) => (
-                <img
-                  key={i}
-                  src={src}
-                  alt=""
-                  className="w-full h-full object-cover opacity-50"
-                />
-              ))}
-            </div>
-            {/* Overlay content */}
-            <div className="relative z-10 flex flex-col items-center justify-center h-full bg-black/40 hover:bg-black/50 transition-colors">
-              <div className="flex items-center gap-2 text-white">
-                <VideoIcon size={16} />
-                <p className="text-sm font-medium">Video Gallery</p>
-              </div>
-            </div>
-          </div>
-
-          {/* PLAYBACK SETTINGS */}
-          <div className="pt-2">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-sm font-semibold text-gray-700">
-                Playback Settings
-              </span>
+            {/* OR Divider */}
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex-1 h-px bg-gray-200" />
+              <span className="text-xs text-gray-400 font-medium">OR</span>
               <div className="flex-1 h-px bg-gray-200" />
             </div>
 
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-600">
-                Autoplay (playback automatically)
-              </p>
-              <button
-                onClick={() => toggleAttribute("autoplay")}
-                className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
-                  hasAttribute("autoplay") ? "bg-indigo-600" : "bg-gray-300"
-                }`}
-              >
-                <div
-                  className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                    hasAttribute("autoplay") ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+            {/* URL Input */}
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-gray-700 font-medium whitespace-nowrap">URL :</label>
+              <input
+                type="text"
+                placeholder="https://"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                onBlur={(e) => replaceTemplateWithUrl(e.target.value)}
+              />
             </div>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-600">
-                Loop (repeat continuously)
-              </p>
-              <button
-                onClick={() => toggleAttribute("loop")}
-                className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
-                  hasAttribute("loop") ? "bg-indigo-600" : "bg-gray-300"
-                }`}
-              >
-                <div
-                  className={`w-3 h-3 bg-white rounded-full transition-transform ${
-                    hasAttribute("loop") ? "translate-x-5" : "translate-x-0"
-                  }`}
-                />
-              </button>
+
+            {/* GALLERY PREVIEW BOX */}
+            <div
+              onClick={() => setOpenGallery(true)}
+              className="relative w-full h-28 border border-gray-200 rounded-lg cursor-pointer overflow-hidden bg-gray-100 mt-2"
+            >
+              {/* Preview thumbnails */}
+              <div className="absolute inset-0 grid grid-cols-3 gap-0.5 p-1">
+                {galleryPreviews.slice(0, 3).map((src, i) => (
+                  <div key={i} className="relative overflow-hidden rounded-md">
+                    <img
+                      src={src}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                    <div className="absolute inset-0 bg-black/40" />
+                    <div className="absolute bottom-1 left-1 right-1 text-[8px] text-white text-center truncate">
+                      {i === 0 ? "Gaming Monster" : i === 1 ? "Letter Mockup" : "Outdoor"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Overlay content */}
+              <div className="relative z-10 flex flex-col items-center justify-center h-full bg-gradient-to-t from-black/70 to-black/30">
+                <div className="flex items-center gap-2 text-white bg-black/40 px-4 py-2 rounded-lg backdrop-blur-sm">
+                  <VideoIcon size={18} />
+                  <p className="text-sm font-semibold">Video Gallery</p>
+                </div>
+              </div>
             </div>
-          </div>
-          {/* COVER IMAGE */}
-          <div className="bg-white rounded-lg p-3">
-            {/* Header */}
-            <div className="flex items-center gap-3 mb-4">
+
+            {/* Video Playback Settings */}
+            <div className="pt-4 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Video Playback Settings
+              </h3>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-700">
+                    AutoPlay (Play video automatically)
+                  </p>
+                  <button
+                    onClick={toggleAutoplay}
+                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${autoplay ? "bg-indigo-600" : "bg-gray-300"
+                      }`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${autoplay ? "translate-x-4" : "translate-x-0"
+                        }`}
+                    />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-700">
+                    Loop (Repeat video continuously)
+                  </p>
+                  <button
+                    onClick={toggleLoop}
+                    disabled={!autoplay}
+                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${loop ? "bg-indigo-600" : "bg-gray-300"
+                      } ${!autoplay && "opacity-50 cursor-not-allowed"}`}
+                  >
+                    <div
+                      className={`w-4 h-4 bg-white rounded-full transition-transform ${loop ? "translate-x-4" : "translate-x-0"
+                        }`}
+                    />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Cover Image Upload Options */}
+            <div className="pt-4 space-y-3">
               <h3 className="text-sm font-semibold text-gray-900">
                 Cover Image Upload Options
               </h3>
-              <div className="flex-1 h-px bg-gray-200" />
-            </div>
-            <div className="flex items-start justify-between gap-6">
-              {/* LEFT OPTIONS */}
-              <div className="space-y-4">
-                <label className="flex items-center gap-3 mt-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="cover"
-                    onChange={() => coverInputRef.current?.click()}
-                    className="accent-indigo-600"
-                  />
-                  <span className="text-xs text-gray-700">
-                    Upload from your File
-                  </span>
-                </label>
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="cover"
-                    onChange={() =>
-                      autoPickThumbnailFromVideo(
-                        selectedElement,
-                        debouncedUpdate,
-                        setPosterSrc,
-                      )
-                    }
-                    className="accent-indigo-600"
-                  />
-                  <span className="text-xs text-gray-700">
-                    Auto Pick from video
-                  </span>
-                </label>
-              </div>
-              <div
-                onClick={() => coverInputRef.current?.click()}
-                className="w-36 h-20 border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer
-             hover:border-indigo-500 transition overflow-hidden"
-              >
-                {posterSrc ? (
-                  <img
-                    src={posterSrc}
-                    alt="Video Cover"
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center text-gray-400 hover:text-indigo-600">
-                    <Upload size={14} />
-                    <p className="text-xs mt-1 text-center">
-                      File Format : JPG, PNG
-                    </p>
-                  </div>
-                )}
+
+              <div className="flex items-start justify-between gap-4">
+                {/* Radio Options */}
+                <div className="space-y-3 flex-1">
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="cover"
+                      onChange={() => coverInputRef.current?.click()}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                    />
+                    <span className="text-xs text-gray-700 group-hover:text-gray-900">
+                      Upload from your File
+                    </span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="cover"
+                      defaultChecked
+                      onChange={handleAutoPickThumbnail}
+                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                    />
+                    <span className="text-xs text-gray-700 group-hover:text-gray-900">
+                      Auto Pick from video
+                    </span>
+                  </label>
+                </div>
+
+                {/* Upload Box */}
+                <div
+                  onClick={() => coverInputRef.current?.click()}
+                  className="w-28 h-20 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 transition overflow-hidden bg-white"
+                >
+                  {posterSrc ? (
+                    <img
+                      src={posterSrc}
+                      alt="Video Cover"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center text-gray-400 hover:text-indigo-500">
+                      <Upload size={16} className="mb-1" />
+                      <p className="text-[10px] text-center px-2">
+                        File Format : JPG, PNG
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
-      {/*GALLERY MODAL*/}
-      {openGallery && (
-        <VideoGalleryModal
-          tab={tab}
-          setTab={setTab}
-          selectedElement={selectedElement}
-          onUpdate={onUpdate}
-          onClose={() => setOpenGallery(false)}
-        />
-      )}
-    </div>
+        )}
+
+        {/* GALLERY MODAL */}
+        {openGallery && (
+          <VideoGalleryModal
+            tab={tab}
+            setTab={setTab}
+            selectedElement={selectedElement}
+            onUpdate={onUpdate}
+            onClose={() => setOpenGallery(false)}
+          />
+        )}
+
+
+      </div>
+
+      {/* INTERACTION PANEL */}
+      <InteractionPanel
+        selectedElement={selectedElement}
+        onUpdate={onUpdate}
+        onPopupPreviewUpdate={onPopupPreviewUpdate}
+      />
+    </>
+
   );
 };
+
 export default VideoEditor;

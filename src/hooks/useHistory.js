@@ -10,26 +10,72 @@ const useHistory = () => {
     isPerforming: false 
   });
 
+  const saveTimerRef = useRef(null);
+  const pendingStateRef = useRef(null);
+
+  const commitHistory = useCallback(() => {
+    if (historyRef.current.isPerforming || !pendingStateRef.current) return;
+    
+    const { undoStack } = historyRef.current;
+    const jsonString = JSON.stringify(pendingStateRef.current);
+    
+    const lastState = undoStack[undoStack.length - 1];
+    if (lastState !== jsonString) {
+      undoStack.push(jsonString);
+      historyRef.current.redoStack = [];
+      
+      if (undoStack.length > 50) {
+        undoStack.shift();
+      }
+      
+      setCanUndo(undoStack.length > 1);
+      setCanRedo(false);
+    }
+    
+    pendingStateRef.current = null;
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+  }, []);
+
   const saveToHistory = useCallback((state) => {
     if (historyRef.current.isPerforming) return;
 
-    const jsonString = JSON.stringify(state);
+    // Update pending state
+    pendingStateRef.current = state;
     
-    const lastState = historyRef.current.undoStack[historyRef.current.undoStack.length - 1];
-    if (lastState === jsonString) return;
-
-    historyRef.current.undoStack.push(jsonString);
-    historyRef.current.redoStack = [];
-
-    if (historyRef.current.undoStack.length > 50) {
-      historyRef.current.undoStack.shift();
+    // Clear existing timer
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
     }
 
-    setCanUndo(historyRef.current.undoStack.length > 1);
-    setCanRedo(false);
-  }, []);
+    // If it's the first state ever, commit it immediately
+    if (historyRef.current.undoStack.length === 0) {
+      historyRef.current.undoStack.push(JSON.stringify(state));
+      setCanUndo(false);
+      return;
+    }
+
+    // Otherwise, debounce the save (800ms)
+    saveTimerRef.current = setTimeout(() => {
+      commitHistory();
+    }, 800);
+  }, [commitHistory]);
 
   const undo = useCallback(() => {
+    // Force commit any pending changes before undoing
+    if (pendingStateRef.current) {
+       // We don't commit here because we want to undo THE state before this pending one
+       // But if we just started typing, the "current" state on stack is BEFORE typing.
+       // So we just clear pending.
+       pendingStateRef.current = null;
+    }
+    if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+    }
+
     const { undoStack, redoStack } = historyRef.current;
     
     if (undoStack.length <= 1) return;
@@ -70,7 +116,8 @@ const useHistory = () => {
     canRedo,
     undo,
     redo,
-    saveToHistory
+    saveToHistory,
+    commitHistory
   };
 };
 

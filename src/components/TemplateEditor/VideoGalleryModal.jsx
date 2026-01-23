@@ -15,7 +15,6 @@ const galleryImages = [
 
 // Ensure this name matches what you import in VideoEditor.jsx
 export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }) {
-  const [activeTab, setActiveTab] = useState("gallery");
   const [selectedSrc, setSelectedSrc] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]);
   const fileRef = useRef(null);
@@ -59,15 +58,10 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
     >
       {/* Tab Headers */}
       <div className="flex px-4 pt-3 border-b bg-white">
-    
-        <button
-          onClick={() => setActiveTab("uploaded")}
-          className={`flex-1 pb-2 text-[12px] font-bold transition-all ${
-            activeTab === "uploaded" ? "border-b-2 border-black text-black" : "border-transparent text-gray-400"
-          }`}
-        >
-          Uploaded Images
-        </button>
+        
+        <div>
+        Video Gallery
+        </div>
       </div>
 
       {/* Content Area */}
@@ -103,7 +97,7 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
               ))}
             </div>
           </div>
-   
+      
       </div>
 
       {/* Footer */}

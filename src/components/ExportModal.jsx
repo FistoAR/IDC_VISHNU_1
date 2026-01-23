@@ -1,37 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X, Loader2 } from 'lucide-react';
+import { X, Loader2, Check } from 'lucide-react';
 
 // Export Modal Component
-const ExportModal = ({ isOpen, onClose, totalPages, currentPage, onExport, pageName }) => {
+const ExportModal = ({ isOpen, onClose, totalPages, currentPage, onExport }) => {
   const [exportType, setExportType] = useState('current'); // current, all, custom
   const [selectedPages, setSelectedPages] = useState([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState(null); // 'jpg', 'png', 'pdf'
 
   useEffect(() => {
     if (isOpen) {
       if (exportType === 'custom' && selectedPages.length === 0) {
-        setSelectedPages(Array.from({ length: totalPages }, (_, i) => i + 1));
+        // Default to no pages or all pages? Screenshot implies user selects.
+        // Let's default to empty or just let them select.
+        // Actually, logic from previous code:
+         // setSelectedPages(Array.from({ length: totalPages }, (_, i) => i + 1));
+         // Let's keep it empty or pre-select none to encourage explicit selection as per screenshot checkboxes
+         // But usually "Custom" implies you want to pick.
       }
     }
   }, [isOpen, exportType, totalPages]);
 
   if (!isOpen) return null;
 
-  const handleExport = async () => {
+  const handleExport = async (format) => {
     setIsExporting(true);
+    setExportingFormat(format);
+    
     let pagesToExport = [];
     
     if (exportType === 'current') {
-      pagesToExport = [currentPage];
+      pagesToExport = [currentPage]; // Use currentPage passed from props
     } else if (exportType === 'all') {
       pagesToExport = Array.from({ length: totalPages }, (_, i) => i + 1);
     } else {
+      // Custom
       pagesToExport = selectedPages.sort((a, b) => a - b);
     }
 
-    await onExport(pagesToExport);
-    setIsExporting(false);
-    onClose();
+    try {
+        await onExport(pagesToExport, format);
+    } catch (error) {
+        console.error("Export failed:", error);
+    } finally {
+        setIsExporting(false);
+        setExportingFormat(null);
+        if (onClose) onClose(); // Optional: Close on success? User might want to stay. 
+        // Usually modals close on success.
+    }
   };
 
   const togglePage = (pageNum) => {
@@ -42,123 +58,141 @@ const ExportModal = ({ isOpen, onClose, totalPages, currentPage, onExport, pageN
     }
   };
 
-  const toggleAll = () => {
-    if (selectedPages.length === totalPages) {
-      setSelectedPages([]);
-    } else {
-      setSelectedPages(Array.from({ length: totalPages }, (_, i) => i + 1));
-    }
-  };
-
   return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4 text-left">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md flex flex-col max-h-[90vh]">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold text-gray-900">Download Pages</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-full transition-colors">
-            <X size={20} className="text-gray-500" />
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4 text-left font-sans">
+      <div className="bg-[#f9fafb] rounded-[1vw] shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 border border-white/20">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 pb-2">
+          <h2 className="text-xl font-bold text-gray-900">Export File</h2>
+          <button onClick={onClose} className="p-1 hover:bg-gray-200 rounded-full transition-colors text-gray-500">
+            <X size={24} />
           </button>
         </div>
+
+        {/* Separator Line */}
+        <div className="px-6">
+            <div className="h-px bg-gray-200 w-full mb-6"></div>
+        </div>
         
-        <div className="p-6 flex-1 overflow-y-auto">
-          <div className="mb-6 space-y-3">
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-              <input 
-                type="radio" 
-                name="exportType" 
-                value="current" 
-                checked={exportType === 'current'}
-                onChange={(e) => setExportType(e.target.value)}
-                className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-              />
-              <div>
-                <span className="font-medium text-gray-900">Current Page</span>
-                <p className="text-sm text-gray-500">Download page {currentPage}</p>
+        <div className="px-6 flex-1 overflow-y-auto custom-scrollbar">
+          
+          <p className="text-sm font-medium text-gray-600 mb-4">
+             Select the Export type <span className="text-red-500">*</span>
+          </p>
+
+          <div className="space-y-4 mb-6">
+            {/* Export Current Pages */}
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative flex items-center justify-center">
+                  <input 
+                    type="radio" 
+                    name="exportType" 
+                    value="current" 
+                    checked={exportType === 'current'}
+                    onChange={(e) => setExportType(e.target.value)}
+                    className="peer appearance-none w-5 h-5 border-2 border-gray-400 rounded-full checked:border-[#6366f1] checked:border-[6px] transition-all"
+                  />
               </div>
+              <span className="text-gray-700 font-medium group-hover:text-gray-900">Export Current Pages</span>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-              <input 
-                type="radio" 
-                name="exportType" 
-                value="all" 
-                checked={exportType === 'all'}
-                onChange={(e) => setExportType(e.target.value)}
-                className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-              />
-              <div>
-                <span className="font-medium text-gray-900">All Pages</span>
-                <p className="text-sm text-gray-500">Download whole book as ZIP</p>
+            {/* Export Entire Pages */}
+            <label className="flex items-center gap-3 cursor-pointer group">
+               <div className="relative flex items-center justify-center">
+                  <input 
+                    type="radio" 
+                    name="exportType" 
+                    value="all" 
+                    checked={exportType === 'all'}
+                    onChange={(e) => setExportType(e.target.value)}
+                    className="peer appearance-none w-5 h-5 border-2 border-gray-400 rounded-full checked:border-[#6366f1] checked:border-[6px] transition-all"
+                  />
               </div>
+              <span className="text-gray-700 font-medium group-hover:text-gray-900">Export Entire Pages</span>
             </label>
 
-            <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-              <input 
-                type="radio" 
-                name="exportType" 
-                value="custom" 
-                checked={exportType === 'custom'}
-                onChange={(e) => setExportType(e.target.value)}
-                className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
-              />
-              <div>
-                <span className="font-medium text-gray-900">Custom Selection</span>
-                <p className="text-sm text-gray-500">Select specific pages</p>
+            {/* Export Custom Selection Pages */}
+            <label className="flex items-center gap-3 cursor-pointer group">
+               <div className="relative flex items-center justify-center">
+                  <input 
+                    type="radio" 
+                    name="exportType" 
+                    value="custom" 
+                    checked={exportType === 'custom'}
+                    onChange={(e) => setExportType(e.target.value)}
+                    className="peer appearance-none w-5 h-5 border-2 border-gray-400 rounded-full checked:border-[#6366f1] checked:border-[6px] transition-all"
+                  />
               </div>
+              <span className="text-gray-700 font-medium group-hover:text-gray-900">Export Custom Selection Pages</span>
             </label>
           </div>
 
+          {/* Custom Selection List */}
           {exportType === 'custom' && (
-            <div className="border rounded-lg p-4 bg-gray-50 animate-in fade-in slide-in-from-top-2 duration-200">
-              <div className="flex justify-between items-center mb-3">
-                <span className="text-sm font-medium text-gray-700">{selectedPages.length} pages selected</span>
-                <button 
-                  onClick={toggleAll}
-                  className="text-xs text-indigo-600 hover:text-indigo-700 font-medium"
-                >
-                  {selectedPages.length === totalPages ? 'Deselect All' : 'Select All'}
-                </button>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden mb-6 animate-in slide-in-from-top-2 duration-200">
+              <div className="px-4 py-3 border-b border-gray-100">
+                  <span className="font-bold text-gray-800 text-sm">Select Pages</span>
               </div>
-              <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto p-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
-                  <button
-                    key={pageNum}
-                    onClick={() => togglePage(pageNum)}
-                    className={`
-                      aspect-[1/1.4] rounded text-xs font-medium flex items-center justify-center border transition-all
-                      ${selectedPages.includes(pageNum)
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm transform scale-105'
-                        : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'}
-                    `}
-                  >
-                    {pageNum}
-                  </button>
-                ))}
+              <div className="max-h-48 overflow-y-auto p-2 custom-scrollbar">
+                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+                    <label 
+                        key={pageNum}
+                        className="flex items-center gap-3 px-3 py-2 hover:bg-gray-50 rounded-md cursor-pointer transition-colors"
+                    >
+                         <div className="relative flex items-center justify-center">
+                             <input 
+                                type="checkbox"
+                                checked={selectedPages.includes(pageNum)}
+                                onChange={() => togglePage(pageNum)}
+                                className="peer appearance-none w-5 h-5 border-2 border-gray-300 rounded checked:bg-[#6366f1] checked:border-[#6366f1] transition-all"
+                             />
+                             <Check className="w-3.5 h-3.5 text-white absolute opacity-0 peer-checked:opacity-100 pointer-events-none" strokeWidth={3} />
+                         </div>
+                         <span className={`text-sm ${selectedPages.includes(pageNum) ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
+                             Page {pageNum}
+                         </span>
+                    </label>
+                 ))}
               </div>
             </div>
           )}
         </div>
 
-        <div className="p-4 border-t bg-gray-50 flex justify-end gap-3 rounded-b-lg">
-          <button 
-            onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-            disabled={isExporting}
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={handleExport}
-            disabled={isExporting || (exportType === 'custom' && selectedPages.length === 0)}
-            className="flex items-center gap-2 px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-          >
-            {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-            {isExporting ? 'Processing...' : 'Download'}
-          </button>
+        {/* Footer Area - Buttons */}
+        <div className="p-6 pt-0 flex flex-col gap-3">
+            <button 
+                onClick={() => handleExport('jpg')}
+                disabled={isExporting}
+                className="w-full py-3 bg-black text-white rounded-lg font-bold text-sm tracking-wide shadow-lg hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+                {isExporting && exportingFormat === 'jpg' ? <Loader2 size={18} className="animate-spin" /> : null}
+                JPG
+            </button>
+            <button 
+                onClick={() => handleExport('png')}
+                disabled={isExporting}
+                className="w-full py-3 bg-black text-white rounded-lg font-bold text-sm tracking-wide shadow-lg hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+                {isExporting && exportingFormat === 'png' ? <Loader2 size={18} className="animate-spin" /> : null}
+                PNG
+            </button>
+            <button 
+                onClick={() => handleExport('pdf')}
+                disabled={isExporting}
+                className="w-full py-3 bg-black text-white rounded-lg font-bold text-sm tracking-wide shadow-lg hover:bg-gray-900 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+                {isExporting && exportingFormat === 'pdf' ? <Loader2 size={18} className="animate-spin" /> : null}
+                PDF
+            </button>
         </div>
       </div>
     </div>
   );
 };
+
+// Start of Check Icon (Custom small component if lucide's Check is too big or behaves weirdly in checkbox context, 
+// though standard Lucide Check is fine. I'll import it above.)
+import { Check as CheckIcon } from 'lucide-react'; // Renaming just in case, but 'Check' is already imported.
 
 export default ExportModal;

@@ -29,14 +29,9 @@
   opacity: 0;
   pointer-events: none;
 }
-
+ 
 video.hide-controls:hover::-webkit-media-controls {
   opacity: 1;
   pointer-events: auto;
   transition: opacity 0.2s ease;
-}
-
-/* Hide the three dots menu button */
-video::-webkit-media-controls-overflow-menu-button {
-  display: none !important;
 }

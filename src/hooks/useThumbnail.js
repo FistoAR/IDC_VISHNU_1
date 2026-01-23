@@ -7,12 +7,23 @@ const useThumbnail = () => {
   const debounceTimeoutRef = useRef(null);
   const cacheRef = useRef(new Map());
 
+  // Simple hash function to detect content changes (even when length doesn't change)
+  const hashString = (str) => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+  };
+
   // Generate thumbnail from HTML content
   const generateThumbnail = useCallback(async (htmlContent, pageId, debounceMs = 1000) => {
     if (!htmlContent) return null;
 
-    // Check cache first
-    const cacheKey = `${pageId}_${htmlContent.length}`;
+    // Use hash instead of length to detect style changes (e.g., icon color changes)
+    const cacheKey = `${pageId}_${hashString(htmlContent)}`;
     if (cacheRef.current.has(cacheKey)) {
       return cacheRef.current.get(cacheKey);
     }
@@ -45,14 +56,14 @@ const useThumbnail = () => {
           doc.close();
 
           // Wait for content to load
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 100));
 
           // Find A4 page or use body
           const targetElement = doc.querySelector('.a4-page') || doc.body;
 
           // Generate canvas
           const canvas = await html2canvas(targetElement, {
-            scale: 0.2, // Lower scale for thumbnail
+            scale: 0.45, // Improved scale for better clarity
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',

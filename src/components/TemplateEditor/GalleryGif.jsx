@@ -2,11 +2,11 @@ import { useState, useRef } from "react";
 import { Upload, X, RefreshCw } from "lucide-react";
 
 const galleryImages = [
-  { src: "https://images.unsplash.com/photo-1541447271487-09612b3f49f7", label: "Sea Port 1" },
-  { src: "https://images.unsplash.com/photo-1517420704212-6804d8c97371", label: "Sea Port 2" },
-  { src: "https://images.unsplash.com/photo-1582005131393-545703056094", label: "Sea Port 3" },
-  { src: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122", label: "Cutting Machine" },
-  { src: "https://images.unsplash.com/photo-1581092160562-40aa08e78837", label: "Lathe Machine" },
+  { src: "https://i.sstatic.net/6QEZB.gif", label: "Sea Port 1" },
+  { src: "https://www.easygifanimator.net/images/samples/video-to-gif-sample.gif", label: "Sea Port 2" },
+  { src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExeW0yYjJ3aGd3dGw1ZWhuZ3o0dGo4aGRnM2JneDkzbmlnNHA5cDUzNSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/doXBzUFJRxpaUbuaqz/200.webp", label: "Sea Port 3" },
+  { src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExeW0yYjJ3aGd3dGw1ZWhuZ3o0dGo4aGRnM2JneDkzbmlnNHA5cDUzNSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/YnexM9LwlwGu4Z1QnS/giphy.webp", label: "Cutting Machine" },
+  { src: "https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjExeW0yYjJ3aGd3dGw1ZWhuZ3o0dGo4aGRnM2JneDkzbmlnNHA5cDUzNSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/3o7aCQ1XJZqF0X0000/giphy.webp", label: "Lathe Machine" },
   { src: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158", label: "Operator" },
   { src: "https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8", label: "Study Materials" },
   { src: "https://images.unsplash.com/photo-1501504905252-473c47e087f8", label: "Digital Education" },
@@ -15,7 +15,6 @@ const galleryImages = [
 
 // Ensure this name matches what you import in VideoEditor.jsx
 export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }) {
-  const [activeTab, setActiveTab] = useState("gallery");
   const [selectedSrc, setSelectedSrc] = useState(null);
   const [uploadedImages, setUploadedImages] = useState([]);
   const fileRef = useRef(null);
@@ -59,20 +58,16 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
     >
       {/* Tab Headers */}
       <div className="flex px-4 pt-3 border-b bg-white">
-  
-        <button
-          onClick={() => setActiveTab("uploaded")}
-          className={`flex-1 pb-2 text-[12px] font-bold transition-all ${
-            activeTab === "uploaded" ? "border-b-2 border-black text-black" : "border-transparent text-gray-400"
-          }`}
+   
+        <div
         >
           Uploaded Gif
-        </button>
+        </div>
       </div>
 
       {/* Content Area */}
       <div className="flex-1 overflow-y-auto p-4 bg-white">
-     
+
           <div className="flex flex-col h-full">
             <h3 className="text-[11px] font-bold text-black mb-3 uppercase tracking-wider">Upload your file</h3>
             <input ref={fileRef} type="file" accept="gif" onChange={handleUpload} className="hidden" />
@@ -103,7 +98,7 @@ export default function VideoGalleryModal({ onClose, onUpdate, selectedElement }
               ))}
             </div>
           </div>
-        
+       
       </div>
 
       {/* Footer */}
