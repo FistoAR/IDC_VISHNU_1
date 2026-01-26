@@ -88,17 +88,16 @@ const GifEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
         {/* HEADER */}
         <button
           onClick={() => setOpen(!open)}
-          className="w-full flex justify-between items-center p-4 border-sm border-gray-50"
+          className="w-full flex justify-between items-center p-2.5 border-sm border-gray-50"
         >
           <div className="flex items-center gap-2">
             <div className="p-1.5 border border-gray-200 rounded-lg">
               <Edit3 size={16} className="text-gray-600" />
             </div>
-            <span className="text-sm font-bold text-gray-700">GIF</span>
+            <span className="text-[16px] font-medium text-gray-800">GIF</span>
           </div>
           <ChevronUp size={18} className={`text-gray-400 transition-transform duration-200 ${open ? '' : 'rotate-180'}`} />
         </button>
-
         {/* CONTENT */}
         {open && (
           <div className="pr-5 pl-5 mb-5 space-y-6">

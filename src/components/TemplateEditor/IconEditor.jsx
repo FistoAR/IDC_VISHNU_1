@@ -324,9 +324,8 @@ const IconEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
         }
       `}</style>
 
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden relative font-sans space-y-4">
-        
-        <div className="flex items-center justify-between p-4 border-sm border-gray-50">
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden relative font-sans space-y-4" onClick={() => setIsMainPanelOpen(!isMainPanelOpen)} >
+        <div className="flex items-center justify-between p-2.5  border-sm border-gray-50">
           <div className="flex items-center gap-2">
             <div className="p-1.5 border border-gray-200 rounded-lg"><Edit3 size={16} className="text-gray-600" /></div>
             <span className="font-bold text-gray-700 text-sm">Icon</span>

@@ -59,25 +59,19 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
   // Calculate the target offset based on view
   const calculateTargetOffset = useCallback((view) => {
     if (isSingleView || !view) return 0;
-
     const visiblePages = Array.isArray(view) ? view.filter(p => p > 0) : [view];
-
     if (visiblePages.length === 1 && visiblePages[0] === 1) {
       return -PAGE_WIDTH / 2;
     }
-
     if (visiblePages.length === 1 && visiblePages[0] === totalPages && totalPages % 2 === 0) {
       return PAGE_WIDTH / 2;
     }
-
     if (Array.isArray(view) && view.length === 2 && view[0] === 0 && view[1] > 0) {
       return -PAGE_WIDTH / 2;
     }
-
     if (Array.isArray(view) && view.length === 2 && view[1] === 0 && view[0] > 0) {
       return PAGE_WIDTH / 2;
     }
-
     return 0;
   }, [isSingleView, totalPages, PAGE_WIDTH]);
 
@@ -244,8 +238,7 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
                 document.head.appendChild(s);
                 
                 document.body.appendChild(tooltip);
-              }
-              
+              }              
               const type = el.dataset.interaction;
               const isLink = type === 'link';
               const isDownload = type === 'download';
@@ -480,7 +473,7 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
                 pointer-events: auto;
                 user-select: text;
               }
-              
+
               #flipbook *:focus {
                 outline: none !important;
                 box-shadow: none !important;
@@ -527,8 +520,7 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
                 transform: translateY(-2px);
             }
         </style>
-        ${interactionScript}
-        `;
+        ${interactionScript}`;
 
       if (content.includes('</head>')) {
         content = content.replace('</head>', `${styleString}</head>`);
@@ -948,7 +940,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
-
   // Display info
   const getDisplayInfo = () => {
     if (isSingleView) {
@@ -960,14 +951,11 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
     }
     return `${currentPage} / ${totalPages}`;
   };
-
   // Inject Turn.js styles
   useEffect(() => {
     const styleId = 'flipbook-turnjs-styles';
-
     // Check if styles already exist
     if (document.getElementById(styleId)) return;
-
     const styleElement = document.createElement('style');
     styleElement.id = styleId;
     styleElement.textContent = `
@@ -977,7 +965,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
         position: absolute;
         top: 0;
       }
-      
       #flipbook.single-mode .page {
         background: linear-gradient(to right, #f5f5f5 0%, #ffffff 3%, #ffffff 100%);
         box-shadow: 
@@ -1015,7 +1002,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
           4px 0 12px rgba(0, 0, 0, 0.06),
           0 6px 20px rgba(0, 0, 0, 0.1);
       }
-      
       #flipbook.double-mode .odd::before {
         content: '';
         position: absolute;
@@ -1031,7 +1017,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
         pointer-events: none;
         z-index: 5;
       }
-      
       #flipbook.double-mode .even {
         background: linear-gradient(to left, #e5e5e5 0%, #f0f0f0 2%, #f8f8f8 4%, #ffffff 8%, #ffffff 100%);
         border-radius: 3px 0 0 3px;
@@ -1042,7 +1027,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
           -4px 0 12px rgba(0, 0, 0, 0.06),
           0 6px 20px rgba(0, 0, 0, 0.1);
       }
-      
       #flipbook.double-mode .even::after {
         content: '';
         position: absolute;
@@ -1058,7 +1042,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
         pointer-events: none;
         z-index: 5;
       }
-      
       #flipbook .page-1,
       #flipbook .p1 {
         border-radius: 0 4px 4px 0 !important;
@@ -1070,7 +1053,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
           6px 0 18px rgba(0, 0, 0, 0.1),
           0 10px 35px rgba(0, 0, 0, 0.15) !important;
       }
-      
       #flipbook .page:last-child {
         border-radius: 4px 0 0 4px;
         background: linear-gradient(to left, #e0e0e0 0%, #ebebeb 2%, #f5f5f5 5%, #ffffff 10%, #ffffff 100%);
@@ -1081,7 +1063,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
           -6px 0 18px rgba(0, 0, 0, 0.1),
           0 10px 35px rgba(0, 0, 0, 0.15);
       }
-      
       #flipbook.double-mode::after {
         content: '';
         position: absolute;
@@ -1100,7 +1081,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
         z-index: 1000;
         pointer-events: none;
       }
-      
       #flipbook.double-mode::before {
         content: '';
         position: absolute;
@@ -1122,33 +1102,27 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
         bottom: 0;
         pointer-events: none;
       }
-      
       #flipbook * {
         -webkit-user-select: auto;
         -moz-user-select: auto;
         -ms-user-select: auto;
         user-select: auto;
       }
-      
       #flipbook .page {
         -webkit-backface-visibility: hidden;
         backface-visibility: hidden;
         -webkit-transform-style: preserve-3d;
         transform-style: preserve-3d;
       }
-      
       #flipbook .turn-page {
         z-index: 500 !important;
       }
-      
       #flipbook .page.turning {
         z-index: 1000 !important;
         box-shadow: 0 15px 50px rgba(0, 0, 0, 0.25), 0 8px 25px rgba(0, 0, 0, 0.15) !important;
       }
     `;
-
     document.head.appendChild(styleElement);
-
     return () => {
       const existingStyle = document.getElementById(styleId);
       if (existingStyle) {
@@ -1156,7 +1130,6 @@ const FlipbookPreview = ({ pages, pageName = "Name of the Book", onClose, isMobi
       }
     };
   }, []);
-
   return (
     <div
       ref={containerRef}

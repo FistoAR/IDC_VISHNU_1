@@ -17,8 +17,7 @@ import {
   Edit3,
 } from "lucide-react";
 import VideoGalleryModal from "./VideoGalleryModal";
-import InteractionPanel from './InteractionPanel';
-
+import InteractionPanel from "./InteractionPanel";
 
 const debounce = (fn, delay = 150) => {
   let t;
@@ -61,7 +60,7 @@ const autoPickThumbnailFromVideo = (selectedElement, onUpdate) => {
         video.currentTime = Math.min(1, video.duration / 10);
         capture();
       },
-      { once: true }
+      { once: true },
     );
   }
 };
@@ -74,31 +73,33 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
   const [previewSrc, setPreviewSrc] = useState(null);
   const [posterSrc, setPosterSrc] = useState(null);
   const [videoType, setVideoType] = useState("fit");
+  const [showVideoTypeDropdown, setShowVideoTypeDropdown] = useState(false);
   const [autoplay, setAutoplay] = useState(false);
   const [loop, setLoop] = useState(false);
   const [isMainPanelOpen, setIsMainPanelOpen] = useState(true);
 
-
   const toggleMainPanel = () => {
-    setIsMainPanelOpen(prev => !prev);
+    setIsMainPanelOpen((prev) => !prev);
   };
-
 
   // Memoize the debounced update function to prevent recreation
   const debouncedUpdate = useMemo(
     () => debounce((...args) => onUpdate?.(...args), 150),
-    [onUpdate]
+    [onUpdate],
   );
 
   // Memoize static gallery previews - this prevents re-creation on every render
-  const galleryPreviews = useMemo(() => [
-    "https://www.abcconsultants.in/wp-content/uploads/2023/07/Industrial.jpg",
-    "https://www.shutterstock.com/image-photo/engineers-discussing-project-outdoors-industrial-260nw-2624485537.jpg",
-    "https://thumbs.dreamstime.com/b/professional-people-workers-working-modern-technology-robotic-industry-automation-manufacturing-engineer-robot-arm-assembly-413769130.jpg",
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjnXGV5m5a_3qpSA5aZOiTI2cxP12fiECP7A&s",
-    "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR2X_82Pzp2MyE0HXq_4QFvxUkjSlLByIkpdg&s",
-    "https://7409217.fs1.hubspotusercontent-na1.net/hubfs/7409217/Imported_Blog_Media/10556694-scaled.jpg",
-  ], []);
+  const galleryPreviews = useMemo(
+    () => [
+      "https://www.abcconsultants.in/wp-content/uploads/2023/07/Industrial.jpg",
+      "https://www.shutterstock.com/image-photo/engineers-discussing-project-outdoors-industrial-260nw-2624485537.jpg",
+      "https://thumbs.dreamstime.com/b/professional-people-workers-working-modern-technology-robotic-industry-automation-manufacturing-engineer-robot-arm-assembly-413769130.jpg",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSjnXGV5m5a_3qpSA5aZOiTI2cxP12fiECP7A&s",
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR2X_82Pzp2MyE0HXq_4QFvxUkjSlLByIkpdg&s",
+      "https://7409217.fs1.hubspotusercontent-na1.net/hubfs/7409217/Imported_Blog_Media/10556694-scaled.jpg",
+    ],
+    [],
+  );
 
   // Consolidate all element sync into one effect to prevent multiple re-renders
   useEffect(() => {
@@ -110,7 +111,8 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
 
     // Update preview source
     if (selectedElement.tagName === "VIDEO") {
-      const src = selectedElement.currentSrc ||
+      const src =
+        selectedElement.currentSrc ||
         selectedElement.src ||
         selectedElement.querySelector("source")?.src ||
         null;
@@ -196,7 +198,7 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
 
   // Memoize toggleAttribute to prevent re-creation
   const toggleAutoplay = useCallback(() => {
-    setAutoplay(prev => {
+    setAutoplay((prev) => {
       const next = !prev;
 
       debouncedUpdate({
@@ -208,7 +210,6 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
       return next;
     });
   }, [debouncedUpdate]);
-
 
   const toggleLoop = useCallback(() => {
     if (!autoplay) return;
@@ -224,7 +225,7 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
       if (autoplay) {
         selectedElement.muted = true; // 🔥 REQUIRED
         selectedElement.setAttribute("muted", "");
-        selectedElement.play().catch(() => { });
+        selectedElement.play().catch(() => {});
       } else {
         selectedElement.pause();
       }
@@ -238,73 +239,85 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
     }
   }, [autoplay, loop, selectedElement]);
 
-
   // Handle video type change (fit, fill, crop)
-  const handleVideoTypeChange = useCallback((type) => {
-    setVideoType(type);
-    if (selectedElement?.tagName === "VIDEO") {
-      const fitMap = {
-        fit: "contain",
-        fill: "fill",
-        crop: "cover",
-      };
-      selectedElement.style.objectFit = fitMap[type] || "contain";
-    }
-  }, [selectedElement]);
+  const handleVideoTypeChange = useCallback(
+    (type) => {
+      setVideoType(type);
+      if (selectedElement?.tagName === "VIDEO") {
+        const fitMap = {
+          fit: "contain",
+          fill: "fill",
+          crop: "cover",
+        };
+        selectedElement.style.objectFit = fitMap[type] || "contain";
+        if (onUpdate) onUpdate();
+      }
+    },
+    [selectedElement, onUpdate],
+  );
   // Memoize hasAttribute to prevent re-creation
-  const hasAttribute = useCallback((attr) => selectedElement?.hasAttribute(attr), [selectedElement]);
+  const hasAttribute = useCallback(
+    (attr) => selectedElement?.hasAttribute(attr),
+    [selectedElement],
+  );
 
   // Memoize handleVideoUpload to prevent re-creation
-  const handleVideoUpload = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedElement) return;
+  const handleVideoUpload = useCallback(
+    (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !selectedElement) return;
 
-    // Use Object URL for better performance (avoids base64 conversion)
-    const videoURL = URL.createObjectURL(file);
+      // Use Object URL for better performance (avoids base64 conversion)
+      const videoURL = URL.createObjectURL(file);
 
-    if (selectedElement.tagName === "VIDEO") {
-      selectedElement.src = videoURL;
-      selectedElement.setAttribute("data-filename", file.name);
-      const source = selectedElement.querySelector("source");
-      if (source) source.src = videoURL;
-      selectedElement.load();
+      if (selectedElement.tagName === "VIDEO") {
+        selectedElement.src = videoURL;
+        selectedElement.setAttribute("data-filename", file.name);
+        const source = selectedElement.querySelector("source");
+        if (source) source.src = videoURL;
+        selectedElement.load();
 
-      // Update preview immediately
-      setPreviewSrc(videoURL);
+        // Update preview immediately
+        setPreviewSrc(videoURL);
 
-      debouncedUpdate();
-    }
-  }, [selectedElement, debouncedUpdate]);
+        debouncedUpdate();
+      }
+    },
+    [selectedElement, debouncedUpdate],
+  );
 
   // Memoize handleCoverUpload to prevent re-creation
-  const handleCoverUpload = useCallback((e) => {
-    const file = e.target.files?.[0];
-    if (!file || !selectedElement) return;
+  const handleCoverUpload = useCallback(
+    (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !selectedElement) return;
 
-    if (selectedElement.tagName !== "VIDEO") {
-      alert("Cover image works only for video files");
-      return;
-    }
+      if (selectedElement.tagName !== "VIDEO") {
+        alert("Cover image works only for video files");
+        return;
+      }
 
-    const reader = new FileReader();
+      const reader = new FileReader();
 
-    reader.onload = (event) => {
-      const result = event.target.result;
+      reader.onload = (event) => {
+        const result = event.target.result;
 
-      // set poster on video
-      selectedElement.poster = result;
+        // set poster on video
+        selectedElement.poster = result;
 
-      // update UI preview
-      setPosterSrc(result);
+        // update UI preview
+        setPosterSrc(result);
 
-      // persist in editor state
-      debouncedUpdate({
-        poster: result,
-      });
-    };
+        // persist in editor state
+        debouncedUpdate({
+          poster: result,
+        });
+      };
 
-    reader.readAsDataURL(file);
-  }, [selectedElement, debouncedUpdate]);
+      reader.readAsDataURL(file);
+    },
+    [selectedElement, debouncedUpdate],
+  );
 
   // Memoize autoPickThumbnailFromVideo callback
   const handleAutoPickThumbnail = useCallback(() => {
@@ -337,54 +350,52 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
     });
   }, [selectedElement, debouncedUpdate]);
 
-
   // Early return if no element is selected
   if (!selectedElement) {
     return (
       <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm p-4 text-center text-gray-400 text-sm">
-        <VideoIcon className="mx-auto mb-2" size={32} />
+        <VideoIcon className="mx-auto mb-2" size={16} />
         <p>Click on a video to edit</p>
       </div>
     );
   }
 
   return (
-
     <>
-
       <div className="border border-gray-200 rounded-lg overflow-hidden  bg-white shadow-sm mb-4">
         {/* SECTION HEADER WITH TOGGLE */}
-        <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 ">
+        <div
+          className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50  "
+          onClick={toggleMainPanel}
+        >
           <div className="flex items-center gap-2">
-            <div className="p-1.5 border border-gray-200 rounded-lg">
-              <Edit3 size={16} className="text-gray-600" />
-            </div>
-            <span className="font-semibold text-gray-700 text-sm">
-              Video
-            </span>
+            <VideoIcon size={16} className="text-gray-600" />
+            <span className="font-medium text-gray-800 text-[15px]">Video</span>
           </div>
 
           <button
             onClick={toggleMainPanel}
-            className="p-1 hover:bg-gray-50 rounded-full transition"
+            className=" p-0.5 hover:bg-gray-50 rounded-full transition"
           >
             <ChevronUp
               size={18}
-              className={`text-gray-400 transition-transform duration-200 ${isMainPanelOpen ? "" : "rotate-180"
-                }`}
+              className={`text-gray-400 transition-transform duration-200 ${
+                isMainPanelOpen ? "" : "rotate-180"
+              }`}
             />
           </button>
         </div>
 
         {/* COLLAPSIBLE CONTENT */}
         {isMainPanelOpen && (
-          <div className="space-y-3 p-4 animate-in fade-in duration-200">
-            {/* Upload your Video Section */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-900">
-                Upload your Video
-              </h3>
-
+          <div className="space-y-5 pr-5 pl-5 mb-15 ">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-gray-900 whitespace-nowrap">
+                  Upload your Video
+                </span>
+                <div className="h-[2px] w-full bg-gray-200" />
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -400,20 +411,44 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
                 onChange={handleCoverUpload}
               />
 
-              {/* SELECT IMAGE TYPE DROPDOWN */}
-              <div className="flex items-center gap-3 mb-4">
-                <label className="text-xs font-medium text-gray-700 whitespace-nowrap">
+              {/* SELECT VIDEO TYPE DROPDOWN */}
+              <div className="flex items-center justify-between relative z-20 mb-4">
+                <span className="text-[12px] font-bold text-gray-700">
                   Select the Video type :
-                </label>
-                <select
-                  value={videoType}
-                  onChange={(e) => handleVideoTypeChange(e.target.value)}
-                  className="flex-1 px-2 py-1 mt-3 mb-3 border border-gray-300 rounded-md text-sm focus:border-transparent bg-white cursor-pointer"
-                >
-                  <option value="fit">Fit</option>
-                  <option value="fill">Fill</option>
-                  <option value="crop">Crop</option>
-                </select>
+                </span>
+                <div className="relative">
+                  <button
+                    onClick={() =>
+                      setShowVideoTypeDropdown(!showVideoTypeDropdown)
+                    }
+                    onBlur={() =>
+                      setTimeout(() => setShowVideoTypeDropdown(false), 200)
+                    }
+                    className="flex items-center justify-between w-24 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
+                  >
+                    <span className="text-[13px] font-bold text-gray-700 capitalize">
+                      {videoType}
+                    </span>
+                    <ChevronDown size={14} className="text-gray-400" />
+                  </button>
+
+                  {showVideoTypeDropdown && (
+                    <div className="absolute right-0 top-full mt-2 w-24 bg-white border border-gray-100 rounded-xl shadow-xl overflow-hidden z-50 flex flex-col py-1 animate-in fade-in zoom-in-95 duration-100">
+                      {["Fit", "Fill"].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => {
+                            handleVideoTypeChange(type.toLowerCase());
+                            setShowVideoTypeDropdown(false);
+                          }}
+                          className="px-4 py-2 text-[13px] font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition-colors text-center"
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Upload Area */}
@@ -451,7 +486,8 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
                 >
                   <Upload size={16} className="mb-0.5" />
                   <p className="text-xs">
-                    Drag & <span className="text-indigo-600 font-medium">Upload</span>
+                    Drag &{" "}
+                    <span className="text-indigo-600 font-medium">Upload</span>
                   </p>
                 </div>
               </div>
@@ -460,8 +496,6 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
                 Supported File Format : MP4
               </p>
             </div>
-
-
 
             {/* OR Divider */}
             <div className="flex items-center gap-3 py-1">
@@ -472,7 +506,9 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
 
             {/* URL Input */}
             <div className="flex items-center gap-2">
-              <label className="text-xs text-gray-700 font-medium whitespace-nowrap">URL :</label>
+              <label className="text-xs text-gray-700 font-medium whitespace-nowrap">
+                URL :
+              </label>
               <input
                 type="text"
                 placeholder="https://"
@@ -497,7 +533,11 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
                     />
                     <div className="absolute inset-0 bg-black/40" />
                     <div className="absolute bottom-1 left-1 right-1 text-[8px] text-white text-center truncate">
-                      {i === 0 ? "Gaming Monster" : i === 1 ? "Letter Mockup" : "Outdoor"}
+                      {i === 0
+                        ? "Gaming Monster"
+                        : i === 1
+                          ? "Letter Mockup"
+                          : "Outdoor"}
                     </div>
                   </div>
                 ))}
@@ -525,12 +565,14 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
                   </p>
                   <button
                     onClick={toggleAutoplay}
-                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${autoplay ? "bg-indigo-600" : "bg-gray-300"
-                      }`}
+                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
+                      autoplay ? "bg-indigo-600" : "bg-gray-300"
+                    }`}
                   >
                     <div
-                      className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${autoplay ? "translate-x-4" : "translate-x-0"
-                        }`}
+                      className={`w-4 h-4 bg-white rounded-full shadow-sm transition-transform ${
+                        autoplay ? "translate-x-4" : "translate-x-0"
+                      }`}
                     />
                   </button>
                 </div>
@@ -542,12 +584,14 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
                   <button
                     onClick={toggleLoop}
                     disabled={!autoplay}
-                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${loop ? "bg-indigo-600" : "bg-gray-300"
-                      } ${!autoplay && "opacity-50 cursor-not-allowed"}`}
+                    className={`w-10 h-5 flex items-center rounded-full p-1 transition ${
+                      loop ? "bg-indigo-600" : "bg-gray-300"
+                    } ${!autoplay && "opacity-50 cursor-not-allowed"}`}
                   >
                     <div
-                      className={`w-4 h-4 bg-white rounded-full transition-transform ${loop ? "translate-x-4" : "translate-x-0"
-                        }`}
+                      className={`w-4 h-4 bg-white rounded-full transition-transform ${
+                        loop ? "translate-x-4" : "translate-x-0"
+                      }`}
                     />
                   </button>
                 </div>
@@ -624,8 +668,6 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
             onClose={() => setOpenGallery(false)}
           />
         )}
-
-
       </div>
 
       {/* INTERACTION PANEL */}
@@ -635,7 +677,6 @@ const VideoEditor = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) => {
         onPopupPreviewUpdate={onPopupPreviewUpdate}
       />
     </>
-
   );
 };
 

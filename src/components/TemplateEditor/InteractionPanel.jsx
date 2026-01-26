@@ -805,7 +805,7 @@ const InteractionPanel = ({ selectedElement, onUpdate, onPopupPreviewUpdate }) =
 
       {/* ================= HEADER ================= */}
       <div
-        className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
+        className="flex items-center justify-between px-2 py-3 cursor-pointer hover:bg-gray-50 transition-colors"
         onClick={() => setIsInteractionsOpen(!isInteractionsOpen)}
       >
         <div className="flex items-center gap-2">

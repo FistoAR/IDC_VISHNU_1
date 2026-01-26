@@ -1220,7 +1220,7 @@ const toggleTextPanel = () => {
   >
     <div className="flex items-center gap-[0.65vw]">
       <div className=" rounded-[0.5vw] bg-gradient-to-br from-indigo-50 to-indigo-100 flex items-center justify-center">
-        <PencilLine size={16}  />
+        <PencilLine size={18}  />
       </div>
       <span className="font-medium text-gray-800 text-[15px]" >
         Text
